@@ -1,239 +1,253 @@
-# =========================================================
-# CHART SELECTOR — INTELLIGENT SCORING ENGINE
-# =========================================================
+"""
+analyzer/chart_selector.py
+──────────────────────────
+Recommends the best chart type for a given column or column pair,
+using a weighted scoring engine driven by column statistics.
 
-_WEIGHTS = {
-    "histogram_base": 2,
-    "skew_bonus": 2,
-    "entropy_bonus": 1,
-    "variance_bonus": 1,
+Each chart type accumulates evidence points; the highest scorer wins.
+Weights and thresholds are centralised at the top for easy tuning.
+"""
 
-    "box_outlier": 3,
-    "box_skew": 1,
+from __future__ import annotations
 
-    "line_monotonic": 3,
 
-    "bar_base": 2,
-    "bar_entropy": 1,
-    "bar_many_categories": 2,
+# ══════════════════════════════════════════════════════════════
+# WEIGHTS  (evidence points per signal)
+# ══════════════════════════════════════════════════════════════
 
-    "pie_small": 2,
-    "pie_balance": 1,
-    "pie_penalty_high_cardinality": -2,
+_W = {
+    # histogram
+    "hist_base":          2,
+    "hist_skew":          2,
+    "hist_entropy":       1,
+    "hist_variance":      1,
+    "hist_many_vals":     1,
 
-    "scatter_base": 3,
-    "line_time": 4,
-    "stacked_base": 3,
+    # box
+    "box_outliers":       4,
+    "box_skew":           1,
+    "box_variance":       1,
+
+    # bar
+    "bar_base":           2,
+    "bar_few_cats":       2,
+    "bar_entropy":        1,
+
+    # pie
+    "pie_small":          2,
+    "pie_balance":        1,
+    "pie_binary":         2,
+    "pie_penalty_large":  -3,
+
+    # line
+    "line_time":          5,
+    "line_monotonic":     3,
+
+    # scatter
+    "scatter_base":       3,
+    "scatter_entropy":    1,
+
+    # stacked bar
+    "stacked_base":       3,
+
+    # grouped bar / box
+    "grouped_bar_few":    3,
+    "grouped_box_many":   3,
+    "grouped_box_var":    1,
+}
+
+# ══════════════════════════════════════════════════════════════
+# THRESHOLDS
+# ══════════════════════════════════════════════════════════════
+
+_T = {
+    "skew_high":            1.0,
+    "entropy_numeric_high": 2.5,
+    "entropy_cat_high":     1.5,
+    "outlier_pct_high":     5.0,
+    "variance_high":        1.0,
+    "cv_high":              50.0,
+    "pie_max_unique":       6,
+    "bar_few_unique":       15,
+    "cat_many_unique":      12,
 }
 
 
-_THRESHOLDS = {
-    "skew_high": 1.0,
-    "entropy_numeric": 2.0,
-    "entropy_categorical": 1.5,
-    "outlier_ratio": 3.0,
-    "pie_max_unique": 6,
-    "bar_many_unique": 8,
-    "cat_many_unique": 10,
-    "variance_high": 1.0,
-    "balance_pie": 0.5,
-    "cardinality_high": 0.5,
-}
-
-
-# =========================================================
+# ══════════════════════════════════════════════════════════════
 # UNIVARIATE
-# =========================================================
+# ══════════════════════════════════════════════════════════════
 
-def choose_univariate_chart(stats, col_type):
-    scores = {
-        "histogram": 0,
-        "box": 0,
-        "bar": 0,
-        "pie": 0,
-        "line": 0,
-    }
-
+def choose_univariate_chart(stats: dict, col_type: str) -> str:
     if col_type == "numeric":
-        scores = _score_numeric_univariate(stats)
-
+        scores = _univar_numeric(stats)
     elif col_type == "categorical":
-        scores = _score_categorical_univariate(stats)
-
+        scores = _univar_categorical(stats)
     elif col_type == "date":
-        scores["line"] = _WEIGHTS["line_time"]
+        return "line"
+    else:
+        return "table"
 
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "table"
 
 
-# =========================================================
-# BIVARIATE
-# =========================================================
+def _univar_numeric(s: dict) -> dict:
+    sc = dict(histogram=0, box=0, bar=0, pie=0, line=0)
 
-def choose_bivariate_chart(type_x, type_y, stats_x=None, stats_y=None):
-    scores = {
-        "scatter": 0,
-        "line": 0,
-        "bar": 0,
-        "stacked_bar": 0,
-        "box": 0,
-    }
+    skew      = abs(s.get("skewness") or 0)
+    entropy   = s.get("numeric_entropy") or 0
+    variance  = s.get("variance_score") or 0
+    cv        = s.get("cv_pct") or 0
+    outlier_r = s.get("outlier_ratio") or 0
+    monotonic = s.get("monotonic", False)
+    n_valid   = s.get("n_valid") or 0
 
-    if type_x == "numeric" and type_y == "numeric":
-        scores["scatter"] += _WEIGHTS["scatter_base"]
+    sc["histogram"] += _W["hist_base"]
 
-        if _is_monotonic(stats_x) or _is_monotonic(stats_y):
-            scores["line"] += 2
+    if skew > _T["skew_high"]:
+        sc["histogram"] += _W["hist_skew"]
+        sc["box"]       += _W["box_skew"]
 
-        if _has_outliers(stats_x) or _has_outliers(stats_y):
-            scores["box"] += 1
+    if entropy > _T["entropy_numeric_high"]:
+        sc["histogram"] += _W["hist_entropy"]
 
-    elif type_x == "categorical" and type_y == "numeric":
-        delta = _categorical_numeric_scores(stats_x, stats_y)
-        _accumulate(scores, delta)
+    if variance > _T["variance_high"] or cv > _T["cv_high"]:
+        sc["histogram"] += _W["hist_variance"]
+        sc["box"]       += _W["box_variance"]
 
-    elif type_y == "categorical" and type_x == "numeric":
-        delta = _categorical_numeric_scores(stats_y, stats_x)
-        _accumulate(scores, delta)
-
-    elif type_x == "date" and type_y == "numeric":
-        scores["line"] += _WEIGHTS["line_time"]
-
-    elif type_y == "date" and type_x == "numeric":
-        scores["line"] += _WEIGHTS["line_time"]
-
-    elif type_x == "categorical" and type_y == "categorical":
-        scores["stacked_bar"] += _WEIGHTS["stacked_base"]
-
-    best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else "table"
-
-
-# =========================================================
-# NUMERIC UNIVARIATE
-# =========================================================
-
-def _score_numeric_univariate(stats):
-    scores = {
-        "histogram": 0,
-        "box": 0,
-        "bar": 0,
-        "pie": 0,
-        "line": 0,
-    }
-
-    skew = abs(stats.get("skewness", 0))
-    entropy = stats.get("numeric_entropy", 0)
-    variance = stats.get("variance_score", 0)
-    outliers = stats.get("outlier_ratio", 0)
-    monotonic = stats.get("monotonic", False)
-
-    scores["histogram"] += _WEIGHTS["histogram_base"]
-
-    if skew > _THRESHOLDS["skew_high"]:
-        scores["histogram"] += _WEIGHTS["skew_bonus"]
-        scores["box"] += _WEIGHTS["box_skew"]
-
-    if entropy > _THRESHOLDS["entropy_numeric"]:
-        scores["histogram"] += _WEIGHTS["entropy_bonus"]
-
-    if variance > _THRESHOLDS["variance_high"]:
-        scores["histogram"] += _WEIGHTS["variance_bonus"]
-
-    if outliers > _THRESHOLDS["outlier_ratio"]:
-        scores["box"] += _WEIGHTS["box_outlier"]
+    if outlier_r > _T["outlier_pct_high"]:
+        sc["box"] += _W["box_outliers"]
 
     if monotonic:
-        scores["line"] += _WEIGHTS["line_monotonic"]
+        sc["line"] += _W["line_monotonic"]
 
-    return scores
+    # many distinct numeric values → histogram beats bar
+    if n_valid > 20:
+        sc["histogram"] += _W["hist_many_vals"]
 
-
-# =========================================================
-# CATEGORICAL UNIVARIATE
-# =========================================================
-
-def _score_categorical_univariate(stats):
-    scores = {
-        "histogram": 0,
-        "box": 0,
-        "bar": 0,
-        "pie": 0,
-        "line": 0,
-    }
-
-    unique = stats.get("unique_count", 0)
-    balance = stats.get("balance_score", 0)
-    entropy = stats.get("categorical_entropy", 0)
-    cardinality = stats.get("cardinality_ratio", 0)
-
-    scores["bar"] += _WEIGHTS["bar_base"]
-
-    if unique <= _THRESHOLDS["pie_max_unique"]:
-        scores["pie"] += _WEIGHTS["pie_small"]
-
-    if balance > _THRESHOLDS["balance_pie"]:
-        scores["pie"] += _WEIGHTS["pie_balance"]
-
-    if unique > _THRESHOLDS["bar_many_unique"]:
-        scores["bar"] += _WEIGHTS["bar_many_categories"]
-
-    if entropy > _THRESHOLDS["entropy_categorical"]:
-        scores["bar"] += _WEIGHTS["bar_entropy"]
-
-    if cardinality > _THRESHOLDS["cardinality_high"]:
-        scores["pie"] += _WEIGHTS["pie_penalty_high_cardinality"]
-
-    return scores
+    return sc
 
 
-# =========================================================
-# CATEGORICAL × NUMERIC
-# =========================================================
+def _univar_categorical(s: dict) -> dict:
+    sc = dict(histogram=0, box=0, bar=0, pie=0, line=0)
 
-def _categorical_numeric_scores(cat_stats, num_stats):
-    scores = {
-        "scatter": 0,
-        "line": 0,
-        "bar": 0,
-        "stacked_bar": 0,
-        "box": 0,
-    }
+    unique     = s.get("unique_count") or 0
+    entropy    = s.get("categorical_entropy") or 0
+    balance    = s.get("balance_score") or 0
+    cardinality= s.get("cardinality_ratio") or 0
 
-    unique = cat_stats.get("unique_count", 0)
+    sc["bar"] += _W["bar_base"]
 
-    if unique <= _THRESHOLDS["cat_many_unique"]:
-        scores["bar"] += 3
+    # pie: few categories
+    if unique <= _T["pie_max_unique"]:
+        sc["pie"] += _W["pie_small"]
 
-    if unique > _THRESHOLDS["cat_many_unique"]:
-        scores["box"] += 3
+    # binary → pie is very effective
+    if unique == 2:
+        sc["pie"] += _W["pie_binary"]
 
-    if num_stats and num_stats.get("variance_score", 0) > _THRESHOLDS["variance_high"]:
-        scores["box"] += 1
+    # balanced distribution → pie works well
+    if balance > 0.6:
+        sc["pie"] += _W["pie_balance"]
 
-    if _has_outliers(num_stats):
-        scores["box"] += 1
+    # high cardinality → bar is safer, kill pie
+    if cardinality > 0.5 or unique > _T["bar_few_unique"]:
+        sc["pie"] += _W["pie_penalty_large"]
+        sc["bar"] += _W["bar_few_cats"]
 
-    return scores
+    if entropy > _T["entropy_cat_high"]:
+        sc["bar"] += _W["bar_entropy"]
+
+    return sc
 
 
-# =========================================================
+# ══════════════════════════════════════════════════════════════
+# BIVARIATE
+# ══════════════════════════════════════════════════════════════
+
+def choose_bivariate_chart(
+    type_x: str,
+    type_y: str,
+    stats_x: dict | None = None,
+    stats_y: dict | None = None,
+) -> str:
+    sc = dict(scatter=0, line=0, bar=0, stacked_bar=0, box=0)
+
+    sx = stats_x or {}
+    sy = stats_y or {}
+
+    # ── numeric × numeric ────────────────────────────────────
+    if type_x == "numeric" and type_y == "numeric":
+        sc["scatter"] += _W["scatter_base"]
+
+        if _high_entropy(sx) or _high_entropy(sy):
+            sc["scatter"] += _W["scatter_entropy"]
+
+        if _is_monotonic(sx) or _is_monotonic(sy):
+            sc["line"] += 2
+
+        if _has_outliers(sx) or _has_outliers(sy):
+            sc["box"] += 1
+
+    # ── date × numeric ───────────────────────────────────────
+    elif (type_x == "date" and type_y == "numeric") or \
+         (type_y == "date" and type_x == "numeric"):
+        sc["line"] += _W["line_time"]
+
+    # ── categorical × numeric ────────────────────────────────
+    elif type_x == "categorical" and type_y == "numeric":
+        _add(sc, _cat_num_scores(sx, sy))
+
+    elif type_y == "categorical" and type_x == "numeric":
+        _add(sc, _cat_num_scores(sy, sx))
+
+    # ── categorical × categorical ────────────────────────────
+    elif type_x == "categorical" and type_y == "categorical":
+        sc["stacked_bar"] += _W["stacked_base"]
+        # if both have few categories prefer grouped bar
+        ux = sx.get("unique_count") or 999
+        uy = sy.get("unique_count") or 999
+        if ux <= 6 and uy <= 6:
+            sc["bar"] += 2
+
+    best = max(sc, key=sc.get)
+    return best if sc[best] > 0 else "table"
+
+
+def _cat_num_scores(cat_s: dict, num_s: dict) -> dict:
+    sc = dict(scatter=0, line=0, bar=0, stacked_bar=0, box=0)
+    unique = cat_s.get("unique_count") or 0
+
+    if unique <= _T["cat_many_unique"]:
+        sc["bar"] += _W["grouped_bar_few"]
+    else:
+        sc["box"] += _W["grouped_box_many"]
+
+    if (num_s.get("variance_score") or 0) > _T["variance_high"]:
+        sc["box"] += _W["grouped_box_var"]
+
+    if _has_outliers(num_s):
+        sc["box"] += 1
+
+    return sc
+
+
+# ══════════════════════════════════════════════════════════════
 # HELPERS
-# =========================================================
+# ══════════════════════════════════════════════════════════════
 
-def _accumulate(base, delta):
+def _add(base: dict, delta: dict):
     for k, v in delta.items():
-        base[k] += v
+        base[k] = base.get(k, 0) + v
 
 
-def _is_monotonic(stats):
-    if not stats:
-        return False
-    return stats.get("monotonic", False)
+def _is_monotonic(s: dict) -> bool:
+    return bool(s.get("monotonic", False))
 
 
-def _has_outliers(stats):
-    if not stats:
-        return False
-    return stats.get("outlier_ratio", 0) > _THRESHOLDS["outlier_ratio"]
+def _has_outliers(s: dict) -> bool:
+    return (s.get("outlier_ratio") or 0) > _T["outlier_pct_high"]
+
+
+def _high_entropy(s: dict) -> bool:
+    return (s.get("numeric_entropy") or 0) > _T["entropy_numeric_high"]
