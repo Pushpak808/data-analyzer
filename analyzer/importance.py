@@ -1,139 +1,140 @@
-import pandas as pd
-import numpy as np
-from scipy.stats import entropy as scipy_entropy
+# =========================================================
+# IMPORTANCE SCORER (uses stats only)
+# =========================================================
+
+_SCORE_MIN = -5
+_SCORE_MAX = 7
 
 
-def score_columns(df: pd.DataFrame) -> dict:
+def score_columns(stats):
+    """
+    stats: output of compute_stats()
+    returns column importance ranking
+    """
+
     results = {}
 
-    for col in df.columns:
-        series = df[col]
-        score = 0
-        reasons = []
-        col_type = detect_type(series)
+    for col, col_stats in stats.items():
+        col_type = col_stats["type"]
 
-        missing_rate = series.isna().mean()
+        score, reasons = _score_column(col_stats, col_type)
 
-        # ── MISSING VALUES ──
-        if missing_rate > 0.7:
-            score -= 3
-            reasons.append(f"High missing rate ({missing_rate:.0%})")
-        elif missing_rate > 0.4:
-            score -= 1
-            reasons.append(f"Moderate missing rate ({missing_rate:.0%})")
+        # clamp score to stable range
+        score = max(_SCORE_MIN, min(score, _SCORE_MAX))
 
-        # ── NUMERIC CHECKS ──
-        if col_type == "numeric":
-            clean = series.dropna()
-            std = clean.std()
-            mean = clean.mean()
-            unique_ratio = clean.nunique() / len(clean)
-
-            if std == 0:
-                score -= 3
-                reasons.append("Constant column — zero variance")
-
-            elif mean != 0:
-                cv = std / abs(mean)
-                if cv < 0.01:
-                    score -= 2
-                    reasons.append("Near-zero variance")
-                elif cv > 0.5:
-                    score += 1
-                    reasons.append("High variability — informative")
-
-            if unique_ratio > 0.95:
-                score -= 2
-                reasons.append("Likely an ID column")
-            elif unique_ratio < 0.05:
-                score += 1
-                reasons.append("Low cardinality — good for grouping")
-
-            score += 1  # numeric columns are generally useful
-
-        # ── CATEGORICAL CHECKS ──
-        elif col_type == "categorical":
-            clean = series.dropna().astype(str)
-            unique_ratio = clean.nunique() / len(clean)
-            value_counts = clean.value_counts(normalize=True)
-            dominant = value_counts.iloc[0] if len(value_counts) else 1.0
-
-            if unique_ratio > 0.95:
-                score -= 2
-                reasons.append("Likely an ID or free-text column")
-
-            if dominant > 0.99:
-                score -= 2
-                reasons.append("Almost uniform — one value dominates")
-
-            probs = value_counts.values
-            ent = scipy_entropy(probs, base=2)
-            if ent < 0.3:
-                score -= 1
-                reasons.append(f"Very low entropy ({ent:.2f}) — little variation")
-            elif ent > 1.5:
-                score += 1
-                reasons.append(f"Good entropy ({ent:.2f}) — diverse values")
-
-            score += 1  # categorical columns useful for segmentation
-
-        # ── DATE CHECKS ──
-        elif col_type == "date":
-            score += 2
-            reasons.append("Date column — useful for time-series analysis")
-
-        # ── TEXT CHECKS ──
-        elif col_type == "text":
-            score -= 1
-            reasons.append("Free text — low analytical value")
-
-        # ── FINAL LABEL ──
-        if score >= 2:
-            label = "important"
-        elif score >= 0:
-            label = "moderate"
-        else:
-            label = "low"
+        label = _label(score)
 
         results[col] = {
             "type": col_type,
-            "score": score,
+            "score": round(score, 2),
             "label": label,
-            "missing_rate": round(missing_rate * 100, 1),
+            "missing_rate": col_stats.get("missing_rate", 0),
             "reasons": reasons,
         }
 
     return results
 
 
-def detect_type(series: pd.Series) -> str:
-    if pd.api.types.is_numeric_dtype(series):
-        return "numeric"
+# =========================================================
+# SCORE ENGINE
+# =========================================================
 
-    if pd.api.types.is_datetime64_any_dtype(series):
-        return "date"
+def _score_column(stats, col_type):
+    score = 0
+    reasons = []
 
-    # try parsing as date
-    sample = series.dropna().astype(str).head(50)
-    try:
-        parsed = pd.to_datetime(sample, infer_datetime_format=True)
-        if parsed.notna().mean() > 0.8:
-            return "date"
-    except Exception:
-        pass
+    missing = stats.get("missing_rate", 0)
 
-    # check cardinality for categorical vs text
-    clean = series.dropna().astype(str)
-    if len(clean) == 0:
-        return "text"
+    # -----------------------------------------------------
+    # MISSING
+    # -----------------------------------------------------
+    if missing > 70:
+        score -= 3
+        reasons.append("Very high missing values")
 
-    unique_ratio = clean.nunique() / len(clean)
-    avg_length = clean.str.len().mean()
+    elif missing > 40:
+        score -= 1
+        reasons.append("High missing values")
 
-    if avg_length > 40:
-        return "text"
+    # -----------------------------------------------------
+    # NUMERIC
+    # -----------------------------------------------------
+    if col_type == "numeric":
+        score += 1
 
-    if unique_ratio < 0.5:
-        return "categorical"
+        variance = stats.get("variance_score", 0)
+        skew = abs(stats.get("skewness", 0))
+        outliers = stats.get("outlier_ratio", 0)
 
-    return "text"
+        if variance > 1:
+            score += 2
+            reasons.append("High variance")
+
+        elif variance < 0.01:
+            score -= 2
+            reasons.append("Near constant values")
+
+        if skew > 1:
+            score += 1
+            reasons.append("Skewed distribution")
+
+        if outliers > 5:
+            score -= 1
+            reasons.append("Many outliers")
+
+    # -----------------------------------------------------
+    # CATEGORICAL
+    # -----------------------------------------------------
+    elif col_type == "categorical":
+        score += 1
+
+        entropy = stats.get("categorical_entropy", 0)
+        unique = stats.get("unique_count", 0)
+        balance = stats.get("balance_score", 0)
+        cardinality = stats.get("cardinality_ratio", 0)
+
+        if entropy > 1.5:
+            score += 2
+            reasons.append("Good category diversity")
+
+        if balance > 0.5:
+            score += 1
+            reasons.append("Balanced categories")
+
+        if unique > 50 or cardinality > 0.8:
+            score -= 2
+            reasons.append("Too many categories")
+
+    # -----------------------------------------------------
+    # DATE
+    # -----------------------------------------------------
+    elif col_type == "date":
+        score += 2
+        reasons.append("Time series data")
+
+        if stats.get("is_sorted"):
+            score += 1
+            reasons.append("Chronological")
+
+    # -----------------------------------------------------
+    # TEXT
+    # -----------------------------------------------------
+    elif col_type == "text":
+        score -= 1
+        reasons.append("Free text column")
+
+    return score, reasons
+
+
+# =========================================================
+# LABEL
+# =========================================================
+
+def _label(score):
+    if score >= 3:
+        return "important"
+
+    if score >= 1:
+        return "moderate"
+
+    return "low"

@@ -1,223 +1,397 @@
 import pandas as pd
 import numpy as np
-from analyzer.importance import detect_type
-from analyzer.chart_selector import choose_univariate_chart, choose_bivariate_chart
+
+from analyzer.chart_selector import (
+    choose_univariate_chart,
+    choose_bivariate_chart,
+)
 
 
-def generate_chart_data(df: pd.DataFrame) -> dict:
+# =========================================================
+# PUBLIC
+# =========================================================
+
+def generate_chart_data(df: pd.DataFrame, stats: dict) -> dict:
     charts = {}
+    columns = list(df.columns)
 
-    numeric_cols = [c for c in df.columns if detect_type(df[c]) == "numeric"]
-    categorical_cols = [c for c in df.columns if detect_type(df[c]) == "categorical"]
-    date_cols = [c for c in df.columns if detect_type(df[c]) == "date"]
+    # -----------------------------------------------------
+    # UNIVARIATE
+    # -----------------------------------------------------
+    for col in columns:
+        series = df[col]
+        col_type = stats[col]["type"]
+        col_stats = stats[col]
 
-    # ── 1. HISTOGRAM for each numeric column ──
-    for col in df.columns:
-        col_type = detect_type(df[col])
-        chart_type = choose_univariate_chart(df[col], col_type)
+        charts.update(
+            _generate_univariate_charts(
+                col,
+                series,
+                col_type,
+                col_stats,
+            )
+        )
 
-        if chart_type == "histogram":
-            clean = df[col].dropna()
-            if len(clean) < 2:
-                continue
+    # -----------------------------------------------------
+    # BIVARIATE
+    # -----------------------------------------------------
+    for i in range(len(columns)):
+        for j in range(i + 1, len(columns)):
+            col_x = columns[i]
+            col_y = columns[j]
 
-            counts, bin_edges = np.histogram(clean, bins=15)
+            charts.update(
+                _generate_bivariate_charts(
+                    df,
+                    col_x,
+                    col_y,
+                    stats[col_x],
+                    stats[col_y],
+                )
+            )
 
-            charts[f"histogram_{col}"] = {
-                "type": "histogram",
-                "title": f"{col} — Distribution",
-                "labels": [
-                    f"{bin_edges[i]:.2f}-{bin_edges[i+1]:.2f}"
-                    for i in range(len(counts))
-                ],
-                "values": counts.tolist(),
-                "col": col,
-            }
-
-        elif chart_type == "bar":
-            counts = df[col].value_counts().head(15)
-
-            charts[f"bar_{col}"] = {
-                "type": "bar",
-                "title": f"{col} — Distribution",
-                "labels": counts.index.astype(str).tolist(),
-                "values": counts.values.tolist(),
-                "col": col,
-            }
-
-        elif chart_type == "pie":
-            counts = df[col].value_counts().head(8)
-
-            charts[f"pie_{col}"] = {
-                "type": "pie",
-                "title": f"{col} — Distribution",
-                "labels": counts.index.astype(str).tolist(),
-                "values": counts.values.tolist(),
-                "col": col,
-            }
-
-    # ── 2. BAR CHART — categorical × numeric ──
-    if categorical_cols and numeric_cols:
-        cat = categorical_cols[0]
-        for num in numeric_cols[:3]:
-            grouped = df.groupby(cat)[num].mean().dropna().sort_values(ascending=False).head(10)
-            charts[f"bar_{cat}_{num}"] = {
-                "type": "bar",
-                "title": f"Avg {num} by {cat}",
-                "labels": grouped.index.tolist(),
-                "values": [round(v, 2) for v in grouped.values.tolist()],
-                "col_x": cat,
-                "col_y": num,
-            }
-
-    # ── 3. LINE CHART — numeric over date or index ──
-    for num in numeric_cols[:3]:
-        if date_cols:
-            date_col = date_cols[0]
-            temp = df[[date_col, num]].copy()
-            temp[date_col] = pd.to_datetime(temp[date_col], errors="coerce")
-            temp = temp.dropna().sort_values(date_col)
-            temp = temp.groupby(date_col)[num].mean().reset_index()
-            charts[f"line_{num}_over_{date_col}"] = {
-                "type": "line",
-                "title": f"{num} over {date_col}",
-                "labels": temp[date_col].astype(str).tolist(),
-                "values": [round(v, 2) for v in temp[num].tolist()],
-                "col_x": date_col,
-                "col_y": num,
-            }
-        else:
-            # use row index sampled evenly
-            step = max(1, len(df) // 50)
-            sampled = df[num].iloc[::step].dropna()
-            charts[f"line_{num}_index"] = {
-                "type": "line",
-                "title": f"{num} — Trend over rows",
-                "labels": [str(i) for i in sampled.index.tolist()],
-                "values": [round(v, 2) for v in sampled.tolist()],
-                "col_x": "index",
-                "col_y": num,
-            }
-
-    # ── 4. PIE CHART — categorical distribution ──
-    for cat in categorical_cols[:2]:
-        counts = df[cat].value_counts().head(8)
-        charts[f"pie_{cat}"] = {
-            "type": "pie",
-            "title": f"{cat} — Distribution",
-            "labels": counts.index.tolist(),
-            "values": counts.values.tolist(),
-            "col": cat,
-        }
-
-    # ── 5. SCATTER PLOT — numeric pairs ──
-    if len(numeric_cols) >= 2:
-        for i in range(min(len(numeric_cols), 3)):
-            for j in range(i + 1, min(len(numeric_cols), 4)):
-                cx, cy = numeric_cols[i], numeric_cols[j]
-                temp = df[[cx, cy]].dropna()
-                step = max(1, len(temp) // 200)
-                sampled = temp.iloc[::step]
-                charts[f"scatter_{cx}_{cy}"] = {
-                    "type": "scatter",
-                    "title": f"{cx} vs {cy}",
-                    "x": [round(v, 4) for v in sampled[cx].tolist()],
-                    "y": [round(v, 4) for v in sampled[cy].tolist()],
-                    "col_x": cx,
-                    "col_y": cy,
-                }
-
-    # ── 6. CORRELATION MATRIX ──
-    if len(numeric_cols) >= 2:
-        corr = df[numeric_cols].corr().round(3)
-        charts["correlation_matrix"] = {
-            "type": "correlation_matrix",
-            "title": "Correlation Matrix",
-            "labels": numeric_cols,
-            "matrix": corr.values.tolist(),
-        }
-
-    # ── 7. BOX PLOT DATA — numeric per category ──
-    if categorical_cols and numeric_cols:
-        cat = categorical_cols[0]
-        for num in numeric_cols[:3]:
-            groups = {}
-            for name, group in df.groupby(cat)[num]:
-                clean = group.dropna()
-                if len(clean) < 4:
-                    continue
-                q1 = float(clean.quantile(0.25))
-                q3 = float(clean.quantile(0.75))
-                iqr = q3 - q1
-                whisker_low = float(clean[clean >= q1 - 1.5 * iqr].min())
-                whisker_high = float(clean[clean <= q3 + 1.5 * iqr].max())
-                outliers = clean[(clean < whisker_low) | (clean > whisker_high)].tolist()
-                groups[str(name)] = {
-                    "min":          whisker_low,
-                    "q1":           q1,
-                    "median":       float(clean.median()),
-                    "q3":           q3,
-                    "max":          whisker_high,
-                    "outliers":     [round(o, 4) for o in outliers[:20]],
-                }
-            if groups:
-                charts[f"boxplot_{cat}_{num}"] = {
-                    "type": "boxplot",
-                    "title": f"{num} distribution by {cat}",
-                    "col_x": cat,
-                    "col_y": num,
-                    "groups": groups,
-                }
-
-    # ── 8. STACKED BAR — two categoricals ──
-    if len(categorical_cols) >= 2 and numeric_cols:
-        cat1, cat2 = categorical_cols[0], categorical_cols[1]
-        num = numeric_cols[0]
-        pivot = df.groupby([cat1, cat2])[num].sum().unstack(fill_value=0)
-        pivot = pivot.head(8)
-        charts[f"stacked_bar_{cat1}_{cat2}"] = {
-            "type": "stacked_bar",
-            "title": f"{num} by {cat1} and {cat2}",
-            "labels": pivot.index.tolist(),
-            "series": {
-                str(col): [round(v, 2) for v in pivot[col].tolist()]
-                for col in pivot.columns[:6]
-            },
-            "col_x": cat1,
-            "col_stack": cat2,
-            "col_y": num,
-        }
-
-    # ── 9. TREEMAP DATA ──
-    for cat in categorical_cols[:2]:
-        if numeric_cols:
-            num = numeric_cols[0]
-            grouped = df.groupby(cat)[num].sum().dropna().sort_values(ascending=False).head(12)
-            charts[f"treemap_{cat}_{num}"] = {
-                "type": "treemap",
-                "title": f"{num} share by {cat}",
-                "labels": grouped.index.tolist(),
-                "values": [round(v, 2) for v in grouped.values.tolist()],
-            }
-        else:
-            counts = df[cat].value_counts().head(12)
-            charts[f"treemap_{cat}"] = {
-                "type": "treemap",
-                "title": f"{cat} — Count share",
-                "labels": counts.index.tolist(),
-                "values": counts.values.tolist(),
-            }
-
-    # ── 10. MISSING VALUES HEATMAP ──
-    missing_matrix = df.isnull().astype(int)
-    step = max(1, len(df) // 100)
-    sampled = missing_matrix.iloc[::step]
-    charts["missing_heatmap"] = {
-        "type": "missing_heatmap",
-        "title": "Missing Values Heatmap",
-        "columns": df.columns.tolist(),
-        "rows": sampled.values.tolist(),
-        "total_missing": df.isnull().sum().tolist(),
-    }
+    charts.update(_correlation_matrix(df, stats))
+    charts.update(_missing_heatmap(df))
 
     return charts
+
+
+# =========================================================
+# UNIVARIATE
+# =========================================================
+
+def _generate_univariate_charts(col, series, col_type, stats):
+    charts = {}
+    clean = series.dropna()
+
+    if len(clean) == 0:
+        return charts
+
+    recommended = choose_univariate_chart(stats, col_type)
+
+    if col_type == "numeric":
+        charts[f"histogram_{col}"] = _histogram_chart(
+            clean, col, _priority("histogram", recommended)
+        )
+
+        charts[f"box_{col}"] = _box_chart(
+            clean, col, _priority("box", recommended)
+        )
+
+    elif col_type == "categorical":
+        charts[f"bar_{col}"] = _bar_chart(
+            clean, col, _priority("bar", recommended)
+        )
+
+        charts[f"pie_{col}"] = _pie_chart(
+            clean, col, _priority("pie", recommended)
+        )
+
+    elif col_type == "date":
+        charts[f"line_{col}"] = _line_chart(
+            clean, col, _priority("line", recommended)
+        )
+
+    return charts
+
+
+# =========================================================
+# BIVARIATE
+# =========================================================
+
+def _generate_bivariate_charts(df, col_x, col_y, stats_x, stats_y):
+    charts = {}
+
+    type_x = stats_x["type"]
+    type_y = stats_y["type"]
+
+    recommended = choose_bivariate_chart(
+        type_x,
+        type_y,
+        stats_x,
+        stats_y,
+    )
+
+    temp = df[[col_x, col_y]].dropna()
+    if len(temp) < 2:
+        return charts
+
+    # numeric vs numeric
+    if type_x == "numeric" and type_y == "numeric":
+        charts[f"scatter_{col_x}_{col_y}"] = _scatter_chart(
+            temp,
+            col_x,
+            col_y,
+            _priority("scatter", recommended),
+        )
+
+    # categorical vs numeric
+    if type_x == "categorical" and type_y == "numeric":
+        charts[f"bar_{col_x}_{col_y}"] = _grouped_bar(
+            temp,
+            col_x,
+            col_y,
+            _priority("bar", recommended),
+        )
+
+        charts[f"box_{col_x}_{col_y}"] = _grouped_box(
+            temp,
+            col_x,
+            col_y,
+            _priority("box", recommended),
+        )
+
+    if type_y == "categorical" and type_x == "numeric":
+        charts[f"bar_{col_y}_{col_x}"] = _grouped_bar(
+            temp,
+            col_y,
+            col_x,
+            _priority("bar", recommended),
+        )
+
+        charts[f"box_{col_y}_{col_x}"] = _grouped_box(
+            temp,
+            col_y,
+            col_x,
+            _priority("box", recommended),
+        )
+
+    # date vs numeric
+    if type_x == "date" and type_y == "numeric":
+        charts[f"line_{col_x}_{col_y}"] = _time_line(
+            temp,
+            col_x,
+            col_y,
+            _priority("line", recommended),
+        )
+
+    if type_y == "date" and type_x == "numeric":
+        charts[f"line_{col_y}_{col_x}"] = _time_line(
+            temp,
+            col_y,
+            col_x,
+            _priority("line", recommended),
+        )
+
+    return charts
+
+
+# =========================================================
+# CHART BUILDERS
+# =========================================================
+
+def _histogram_chart(series, col, priority):
+    counts, bins = np.histogram(series, bins=15)
+
+    return {
+        "type": "histogram",
+        "title": f"{col} Distribution",
+        "labels": [
+            f"{bins[i]:.2f}-{bins[i+1]:.2f}"
+            for i in range(len(counts))
+        ],
+        "values": counts.tolist(),
+        "col": col,
+        "priority": priority,
+    }
+
+
+def _box_chart(series, col, priority):
+    q1 = float(series.quantile(0.25))
+    q3 = float(series.quantile(0.75))
+    median = float(series.median())
+    iqr = q3 - q1
+
+    outliers = series[
+        (series < q1 - 1.5 * iqr) |
+        (series > q3 + 1.5 * iqr)
+    ].tolist()
+
+    return {
+        "type": "boxplot",
+        "title": f"{col} Boxplot",
+        "groups": {
+            col: {
+                "min": float(series.min()),
+                "q1": q1,
+                "median": median,
+                "q3": q3,
+                "max": float(series.max()),
+                "outliers": outliers[:50],
+            }
+        },
+        "priority": priority,
+    }
+
+
+def _bar_chart(series, col, priority):
+    counts = series.value_counts().head(15)
+
+    return {
+        "type": "bar",
+        "title": f"{col} Distribution",
+        "labels": counts.index.astype(str).tolist(),
+        "values": counts.values.tolist(),
+        "col": col,
+        "priority": priority,
+    }
+
+
+def _pie_chart(series, col, priority):
+    counts = series.value_counts().head(8)
+
+    return {
+        "type": "pie",
+        "title": f"{col} Distribution",
+        "labels": counts.index.astype(str).tolist(),
+        "values": counts.values.tolist(),
+        "col": col,
+        "priority": priority,
+    }
+
+
+def _line_chart(series, col, priority):
+    step = max(1, len(series) // 50)
+    sampled = series.iloc[::step]
+
+    return {
+        "type": "line",
+        "title": f"{col} Trend",
+        "labels": [str(i) for i in sampled.index],
+        "values": sampled.astype(str).tolist(),
+        "priority": priority,
+    }
+
+
+def _scatter_chart(df, x, y, priority):
+    if len(df) > 500:
+        df = df.sample(500, random_state=42)
+
+    return {
+        "type": "scatter",
+        "title": f"{x} vs {y}",
+        "x": df[x].tolist(),
+        "y": df[y].tolist(),
+        "col_x": x,
+        "col_y": y,
+        "priority": priority,
+    }
+
+
+def _grouped_bar(df, cat, num, priority):
+    grouped = df.groupby(cat)[num].mean().sort_values(ascending=False).head(10)
+
+    return {
+        "type": "bar",
+        "title": f"{num} by {cat}",
+        "labels": grouped.index.astype(str).tolist(),
+        "values": grouped.values.tolist(),
+        "col_x": cat,
+        "col_y": num,
+        "priority": priority,
+    }
+
+
+def _grouped_box(df, cat, num, priority):
+    groups = {}
+
+    for name, g in df.groupby(cat)[num]:
+        clean = g.dropna()
+
+        if len(clean) < 4:
+            groups[str(name)] = {
+                "insufficient_data": True
+            }
+            continue
+
+        q1 = float(clean.quantile(0.25))
+        q3 = float(clean.quantile(0.75))
+        iqr = q3 - q1
+
+        outliers = clean[
+            (clean < q1 - 1.5 * iqr) |
+            (clean > q3 + 1.5 * iqr)
+        ].tolist()
+
+        groups[str(name)] = {
+            "min": float(clean.min()),
+            "q1": q1,
+            "median": float(clean.median()),
+            "q3": q3,
+            "max": float(clean.max()),
+            "outliers": outliers[:20],
+        }
+
+    return {
+        "type": "boxplot",
+        "title": f"{num} by {cat}",
+        "groups": groups,
+        "priority": priority,
+    }
+
+
+def _time_line(df, date, num, priority):
+    temp = df.copy()
+    temp[date] = pd.to_datetime(temp[date])
+    temp = temp.sort_values(date)
+
+    return {
+        "type": "line",
+        "title": f"{num} over {date}",
+        "labels": temp[date].astype(str).tolist(),
+        "values": temp[num].tolist(),
+        "col_x": date,
+        "col_y": num,
+        "priority": priority,
+    }
+
+
+# =========================================================
+# DATASET LEVEL
+# =========================================================
+
+def _correlation_matrix(df, stats):
+    numeric = [c for c in df.columns if stats[c]["type"] == "numeric"]
+
+    if len(numeric) < 2:
+        return {}
+
+    corr = df[numeric].corr().round(3)
+
+    return {
+        "correlation_matrix": {
+            "type": "correlation_matrix",
+            "title": "Correlation Matrix",
+            "labels": numeric,
+            "matrix": corr.values.tolist(),
+            "priority": "high",
+        }
+    }
+
+
+def _missing_heatmap(df):
+    missing = df.isnull().astype(int)
+    step = max(1, len(df) // 100)
+    sampled = missing.iloc[::step]
+
+    return {
+        "missing_heatmap": {
+            "type": "missing_heatmap",
+            "title": "Missing Values Heatmap",
+            "columns": df.columns.tolist(),
+            "rows": sampled.values.tolist(),
+            "priority": "high",
+        }
+    }
+
+
+# =========================================================
+# PRIORITY
+# =========================================================
+
+def _priority(chart, recommended):
+    if chart == recommended:
+        return "high"
+    if chart in ("scatter", "bar", "line"):
+        return "medium"
+    return "low"

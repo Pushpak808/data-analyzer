@@ -1,965 +1,323 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DataSage</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --bg:       #f5f5f0;
-    --surface:  #ffffff;
-    --border:   #e2e2dc;
-    --text:     #1a1a1a;
-    --muted:    #6b6b6b;
-    --accent:   #1a1a1a;
-    --green:    #16a34a;
-    --yellow:   #ca8a04;
-    --red:      #dc2626;
-    --blue:     #2563eb;
-  }
-
-  body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
-
-  /* ── NAV ── */
-  nav {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-  .logo {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 500; font-size: 15px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .logo-sq {
-    width: 20px; height: 20px;
-    background: var(--text); border-radius: 4px;
-  }
-  .nav-status {
-    font-size: 12px; color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── UPLOAD ── */
-  #upload-section {
-    max-width: 640px; margin: 80px auto; padding: 0 24px;
-  }
-  .upload-heading {
-    font-size: 32px; font-weight: 600;
-    letter-spacing: -1px; margin-bottom: 8px;
-    line-height: 1.2;
-  }
-  .upload-sub {
-    color: var(--muted); font-size: 15px;
-    margin-bottom: 36px; font-weight: 300;
-  }
-  .drop-zone {
-    border: 1.5px dashed var(--border);
-    border-radius: 12px;
-    padding: 56px 40px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: var(--surface);
-  }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--text);
-    background: #fafaf8;
-  }
-  .drop-icon {
-    font-size: 32px; margin-bottom: 16px;
-  }
-  .drop-title {
-    font-size: 16px; font-weight: 500; margin-bottom: 6px;
-  }
-  .drop-sub {
-    font-size: 13px; color: var(--muted); margin-bottom: 20px;
-  }
-  .upload-btn {
-    display: inline-block;
-    background: var(--text); color: #fff;
-    padding: 9px 22px; border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    cursor: pointer; border: none;
-    font-family: 'Inter', sans-serif;
-    transition: opacity 0.2s;
-  }
-  .upload-btn:hover { opacity: 0.8; }
-  .fmt-row {
-    display: flex; gap: 6px; justify-content: center; margin-top: 16px;
-  }
-  .fmt {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: var(--muted);
-    background: var(--bg); border: 1px solid var(--border);
-    padding: 3px 8px; border-radius: 4px;
-  }
-  #file-input { display: none; }
-
-  /* ── LOADING ── */
-  #loading {
-    display: none;
-    max-width: 400px; margin: 120px auto;
-    text-align: center; padding: 0 24px;
-  }
-  .spinner {
-    width: 32px; height: 32px;
-    border: 2px solid var(--border);
-    border-top-color: var(--text);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin: 0 auto 24px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-title { font-size: 16px; font-weight: 500; margin-bottom: 20px; }
-  .steps { list-style: none; text-align: left; display: inline-block; }
-  .steps li {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--muted);
-    padding: 3px 0;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .steps li.done { color: var(--green); }
-  .steps li.active { color: var(--text); }
-  .step-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
-  /* ── DASHBOARD ── */
-  #dashboard { display: none; }
-
-  .dash-nav {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 32px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .dash-file {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--muted);
-  }
-  .dash-file span { color: var(--text); font-weight: 500; }
-  .reset-btn {
-    font-size: 12px; color: var(--muted);
-    background: none; border: 1px solid var(--border);
-    padding: 5px 12px; border-radius: 6px;
-    cursor: pointer; font-family: 'Inter', sans-serif;
-    transition: all 0.2s;
-  }
-  .reset-btn:hover { border-color: var(--text); color: var(--text); }
-
-  .dash-body {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    min-height: calc(100vh - 105px);
-  }
-
-  /* ── SIDEBAR ── */
-  .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 20px 0;
-    overflow-y: auto;
-    position: sticky; top: 105px;
-    max-height: calc(100vh - 105px);
-  }
-  .sidebar-section { margin-bottom: 8px; }
-  .sidebar-label {
-    font-size: 10px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 1.5px;
-    color: var(--muted); padding: 0 20px 8px;
-  }
-  .col-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 20px; cursor: pointer;
-    transition: background 0.15s;
-    border-left: 2px solid transparent;
-  }
-  .col-item:hover { background: var(--bg); }
-  .col-item.active {
-    background: var(--bg);
-    border-left-color: var(--text);
-  }
-  .col-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .col-name { font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .importance-badge {
-    font-size: 9px; font-weight: 600;
-    padding: 2px 6px; border-radius: 3px;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    flex-shrink: 0;
-  }
-  .badge-important { background: #dcfce7; color: #15803d; }
-  .badge-moderate  { background: #fef9c3; color: #854d0e; }
-  .badge-low       { background: #fee2e2; color: #991b1b; }
-
-  /* ── MAIN CONTENT ── */
-  .main-content { padding: 28px 32px; }
-
-  /* ── OVERVIEW CARDS ── */
-  .overview-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px; margin-bottom: 28px;
-  }
-  .ov-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px; padding: 16px;
-  }
-  .ov-label {
-    font-size: 11px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px;
-    font-weight: 500; margin-bottom: 6px;
-  }
-  .ov-value {
-    font-size: 24px; font-weight: 600;
-    letter-spacing: -0.5px; line-height: 1;
-  }
-  .ov-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
-
-  /* ── SECTION TITLES ── */
-  .section-title {
-    font-size: 13px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 1px;
-    color: var(--muted); margin-bottom: 14px;
-    padding-bottom: 10px; border-bottom: 1px solid var(--border);
-  }
-
-  /* ── COLUMN DETAIL ── */
-  #col-detail { margin-bottom: 28px; display: none; }
-  .col-detail-header {
-    display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
-  }
-  .col-detail-name {
-    font-size: 20px; font-weight: 600; letter-spacing: -0.5px;
-  }
-  .col-detail-type {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: var(--muted);
-  }
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    gap: 8px; margin-bottom: 16px;
-  }
-  .stat-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px;
-  }
-  .stat-key {
-    font-size: 10px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.8px;
-    margin-bottom: 4px; font-weight: 500;
-  }
-  .stat-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px; font-weight: 500;
-  }
-  .reasons-list {
-    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
-  }
-  .reason-tag {
-    font-size: 11px; color: var(--muted);
-    background: var(--bg); border: 1px solid var(--border);
-    padding: 3px 10px; border-radius: 20px;
-  }
-
-  /* ── CHARTS ── */
-  #charts-section { margin-bottom: 28px; }
-  .charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-    gap: 16px;
-  }
-  .chart-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 20px;
-  }
-  .chart-title {
-    font-size: 12px; font-weight: 500; color: var(--muted);
-    margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.8px;
-  }
-  .chart-wrap { position: relative; height: 220px; }
-
-  /* ── CORRELATION MATRIX ── */
-  .corr-wrap { overflow-x: auto; }
-  .corr-table {
-    border-collapse: collapse;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-  }
-  .corr-table th, .corr-table td {
-    padding: 6px 10px; text-align: center;
-    border: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  .corr-table th { background: var(--bg); font-weight: 500; }
-
-  /* ── BOX PLOT ── */
-  .box-svg { width: 100%; overflow: visible; }
-
-  /* ── MISSING HEATMAP ── */
-  .heatmap-wrap { overflow-x: auto; }
-  .heatmap-grid {
-    display: flex; gap: 4px;
-  }
-  .heatmap-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
-  .heatmap-col-label {
-    font-size: 9px; color: var(--muted);
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    margin-bottom: 4px;
-    max-height: 60px; overflow: hidden;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .heatmap-cell { width: 12px; height: 4px; border-radius: 1px; }
-
-  /* ── TREEMAP ── */
-  .treemap-wrap { position: relative; height: 220px; }
-  .treemap-cell {
-    position: absolute; border: 2px solid var(--surface);
-    border-radius: 4px; display: flex; align-items: center;
-    justify-content: center; overflow: hidden; cursor: default;
-    transition: opacity 0.15s;
-  }
-  .treemap-cell:hover { opacity: 0.85; }
-  .treemap-label {
-    font-size: 11px; font-weight: 500; color: #fff;
-    text-align: center; padding: 4px;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-    pointer-events: none;
-  }
-
-  /* ── DATA TABLE ── */
-  #table-section { margin-bottom: 28px; }
-  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead th {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.8px;
-    padding: 10px 14px; text-align: left;
-    background: var(--bg); border-bottom: 1px solid var(--border);
-    white-space: nowrap; font-weight: 500;
-  }
-  tbody td {
-    padding: 8px 14px; border-bottom: 1px solid var(--border);
-    color: var(--muted); white-space: nowrap;
-    max-width: 160px; overflow: hidden; text-overflow: ellipsis;
-    font-size: 12px; font-family: 'JetBrains Mono', monospace;
-  }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: var(--bg); color: var(--text); }
-</style>
-</head>
-<body>
-
-<nav>
-  <div class="logo"><div class="logo-sq"></div> DataSage</div>
-  <div class="nav-status" id="nav-status">ready</div>
-</nav>
-
-<!-- UPLOAD -->
-<div id="upload-section">
-  <div class="upload-heading">Analyze your data<br>instantly.</div>
-  <div class="upload-sub">Upload a CSV, Excel, or JSON file — get stats, charts, and insights in seconds.</div>
-  <div class="drop-zone" id="drop-zone">
-    <div class="drop-icon">⬆</div>
-    <div class="drop-title">Drop your file here</div>
-    <div class="drop-sub">or click to browse</div>
-    <button class="upload-btn" onclick="document.getElementById('file-input').click()">Choose file</button>
-    <div class="fmt-row">
-      <span class="fmt">.csv</span>
-      <span class="fmt">.xlsx</span>
-      <span class="fmt">.xls</span>
-      <span class="fmt">.json</span>
-    </div>
-  </div>
-  <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.json">
-</div>
-
-<!-- LOADING -->
-<div id="loading">
-  <div class="spinner"></div>
-  <div class="loading-title">Analyzing your dataset...</div>
-  <ul class="steps" id="steps">
-    <li id="s0"><span class="step-dot"></span> Parsing file</li>
-    <li id="s1"><span class="step-dot"></span> Detecting column types</li>
-    <li id="s2"><span class="step-dot"></span> Computing statistics</li>
-    <li id="s3"><span class="step-dot"></span> Generating charts</li>
-    <li id="s4"><span class="step-dot"></span> Scoring importance</li>
-  </ul>
-</div>
-
-<!-- DASHBOARD -->
-<div id="dashboard">
-  <div class="dash-nav">
-    <div class="dash-file">analyzing — <span id="dash-filename"></span></div>
-    <button class="reset-btn" onclick="reset()">↑ New upload</button>
-  </div>
-  <div class="dash-body">
-
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-      <div class="sidebar-section">
-        <div class="sidebar-label">Columns</div>
-        <div id="col-list"></div>
-      </div>
-    </div>
-
-    <!-- MAIN -->
-    <div class="main-content">
-
-      <!-- OVERVIEW -->
-      <div class="overview-grid" id="overview-grid"></div>
-
-      <!-- COLUMN DETAIL -->
-      <div id="col-detail">
-        <div class="section-title">Column Detail</div>
-        <div class="col-detail-header">
-          <div class="col-detail-name" id="detail-name"></div>
-          <div class="col-detail-type" id="detail-type"></div>
-        </div>
-        <div class="reasons-list" id="detail-reasons"></div>
-        <div class="stats-grid" id="detail-stats"></div>
-      </div>
-
-      <!-- DATA TABLE -->
-      <div id="table-section">
-        <div class="section-title">Data Preview</div>
-        <div class="table-wrap" id="table-wrap"></div>
-      </div>
-
-      <!-- CHARTS -->
-      <div id="charts-section">
-        <div class="section-title">Charts</div>
-        <div class="charts-grid" id="charts-grid"></div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
 <script>
-// ── PALETTE ──
-const COLORS = ['#1a1a1a','#2563eb','#16a34a','#dc2626','#ca8a04','#7c3aed','#0891b2','#be185d','#065f46','#92400e'];
-const TYPE_COLOR = { numeric: '#2563eb', categorical: '#16a34a', date: '#ca8a04', text: '#6b6b6b' };
 
-let G = {};
-let chartInstances = [];
+const COLORS=[
+"#2563eb","#16a34a","#dc2626",
+"#ca8a04","#7c3aed","#0891b2",
+"#be185d","#111827"
+]
 
-// ── DROP ZONE ──
-const dz = document.getElementById('drop-zone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); });
-document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) upload(e.target.files[0]); });
+let G={}
+let chartInstances=[]
 
-// ── UPLOAD ──
-async function upload(file) {
-  show('loading');
-  animateSteps();
-
-  const form = new FormData();
-  form.append('file', file);
-
-  try {
-    const res = await fetch('http://localhost:8000/upload', { method: 'POST', body: form });
-    if (!res.ok) {
-      const err = await res.json();
-      alert('Error: ' + err.detail);
-      show('upload');
-      return;
-    }
-    G = await res.json();
-    renderDashboard();
-  } catch (e) {
-    alert('Could not reach the server. Make sure python main.py is running.');
-    show('upload');
-  }
+document.getElementById("drop-zone").onclick=()=>{
+document.getElementById("file-input").click()
 }
 
-function animateSteps() {
-  const ids = ['s0','s1','s2','s3','s4'];
-  let i = 0;
-  ids.forEach(id => document.getElementById(id).className = '');
-  const t = setInterval(() => {
-    if (i > 0) { document.getElementById(ids[i-1]).classList.add('done'); }
-    if (i < ids.length) { document.getElementById(ids[i]).classList.add('active'); i++; }
-    else clearInterval(t);
-  }, 500);
+document.getElementById("file-input").onchange=e=>{
+upload(e.target.files[0])
 }
 
-function show(section) {
-  document.getElementById('upload-section').style.display = section === 'upload' ? 'block' : 'none';
-  document.getElementById('loading').style.display = section === 'loading' ? 'block' : 'none';
-  document.getElementById('dashboard').style.display = section === 'dashboard' ? 'block' : 'none';
+function show(s){
+document.getElementById("upload-section").style.display =
+s==="upload"?"block":"none"
+
+document.getElementById("loading").style.display =
+s==="loading"?"block":"none"
+
+document.getElementById("dashboard").style.display =
+s==="dashboard"?"block":"none"
 }
 
-function reset() {
-  chartInstances.forEach(c => c.destroy());
-  chartInstances = [];
-  document.getElementById('file-input').value = '';
-  show('upload');
+async function upload(file){
+try{
+
+show("loading")
+
+const form=new FormData()
+form.append("file",file)
+
+const res=await fetch("/upload",{
+method:"POST",
+body:form
+})
+
+if(!res.ok){
+show("upload")
+alert("Upload failed")
+return
 }
 
-// ── RENDER DASHBOARD ──
-function renderDashboard() {
-  document.getElementById('dash-filename').textContent = G.filename;
-  document.getElementById('nav-status').textContent = `${G.rows} rows · ${G.columns.length} cols`;
+G=await res.json()
 
-  renderOverview();
-  renderSidebar();
-  renderTable();
-  renderCharts();
+renderSidebar()
+renderCharts()
 
-  show('dashboard');
-  window.scrollTo(0, 0);
+show("dashboard")
+
+}catch(e){
+console.error(e)
+show("upload")
+alert("Upload error")
+}
 }
 
-// ── OVERVIEW ──
-function renderOverview() {
-  const imp = G.column_importance;
-  const important = Object.values(imp).filter(c => c.label === 'important').length;
-  const low = Object.values(imp).filter(c => c.label === 'low').length;
-  const totalMissing = Object.values(G.stats).reduce((a, s) => a + (s.missing || 0), 0);
-  const completeness = (100 - totalMissing / (G.rows * G.columns.length) * 100).toFixed(1);
+function renderSidebar(){
+const imp=G.column_importance
+const el=document.getElementById("col-list")
 
-  const cards = [
-    { label: 'Rows', value: G.rows.toLocaleString(), sub: 'records' },
-    { label: 'Columns', value: G.columns.length, sub: 'total' },
-    { label: 'Important cols', value: important, sub: `${low} low importance` },
-    { label: 'Completeness', value: completeness + '%', sub: `${totalMissing} missing values` },
-  ];
-
-  document.getElementById('overview-grid').innerHTML = cards.map(c => `
-    <div class="ov-card">
-      <div class="ov-label">${c.label}</div>
-      <div class="ov-value">${c.value}</div>
-      <div class="ov-sub">${c.sub}</div>
-    </div>`).join('');
+el.innerHTML=G.columns.map(c=>{
+const info=imp[c]
+return `
+<div class="col-item">
+<div>${c}</div>
+<div class="badge-${info.label}">
+${info.label}
+</div>
+</div>`
+}).join("")
 }
 
-// ── SIDEBAR ──
-function renderSidebar() {
-  const imp = G.column_importance;
-  document.getElementById('col-list').innerHTML = G.columns.map((col, i) => {
-    const info = imp[col];
-    return `
-    <div class="col-item" onclick="selectCol('${col}')" id="ci-${i}">
-      <div class="col-dot" style="background:${TYPE_COLOR[info.type] || '#999'}"></div>
-      <div class="col-name" title="${col}">${col}</div>
-      <div class="importance-badge badge-${info.label}">${info.label === 'important' ? '✓' : info.label === 'moderate' ? '~' : '✕'}</div>
-    </div>`;
-  }).join('');
+function renderCharts(){
+
+chartInstances.forEach(c=>c.destroy())
+chartInstances=[]
+
+const grid=document.getElementById("charts-grid")
+grid.innerHTML=""
+
+const charts=Object.entries(G.charts)
+const order={high:0,medium:1,low:2}
+
+charts.sort((a,b)=>
+(order[a[1].priority||"medium"]-
+order[b[1].priority||"medium"])
+)
+
+charts.forEach(([key,chart])=>{
+
+if(chart.type==="correlation_matrix"){
+renderCorr(chart)
+return
 }
 
-// ── COLUMN DETAIL ──
-function selectCol(col) {
-  document.querySelectorAll('.col-item').forEach(el => el.classList.remove('active'));
-  const idx = G.columns.indexOf(col);
-  document.getElementById(`ci-${idx}`)?.classList.add('active');
-
-  const imp = G.column_importance[col];
-  const stat = G.stats[col];
-  document.getElementById('col-detail').style.display = 'block';
-  document.getElementById('detail-name').textContent = col;
-  document.getElementById('detail-type').textContent = `${imp.type} · ${imp.label} importance (score: ${imp.score})`;
-
-  document.getElementById('detail-reasons').innerHTML =
-    imp.reasons.map(r => `<span class="reason-tag">${r}</span>`).join('') ||
-    '<span class="reason-tag">No flags</span>';
-
-  const statEntries = buildStatEntries(stat, imp.type);
-  document.getElementById('detail-stats').innerHTML = statEntries.map(([k, v]) => `
-    <div class="stat-box">
-      <div class="stat-key">${k}</div>
-      <div class="stat-val">${v ?? '—'}</div>
-    </div>`).join('');
+if(chart.type==="missing_heatmap"){
+renderMissing(chart)
+return
 }
 
-function buildStatEntries(stat, type) {
-  const base = [['Total', stat.total], ['Missing', `${stat.missing} (${stat.missing_rate}%)`]];
-  if (type === 'numeric') return [...base,
-    ['Mean', fmt(stat.mean)], ['Median', fmt(stat.median)], ['Std Dev', fmt(stat.std)],
-    ['Min', fmt(stat.min)], ['Max', fmt(stat.max)], ['Q1', fmt(stat.q1)], ['Q3', fmt(stat.q3)],
-    ['Skewness', fmt(stat.skewness)], ['Kurtosis', fmt(stat.kurtosis)], ['Outliers', stat.outliers],
-  ];
-  if (type === 'categorical') return [...base,
-    ['Unique', stat.unique_count], ['Top Value', stat.dominant_value], ['Top Rate', stat.dominant_rate + '%'],
-  ];
-  if (type === 'date') return [...base,
-    ['Min Date', stat.min_date], ['Max Date', stat.max_date], ['Range (days)', stat.range_days], ['Unique Dates', stat.unique_dates],
-  ];
-  return [...base, ['Unique', stat.unique_count], ['Avg Length', fmt(stat.avg_length)], ['Max Length', stat.max_length]];
+if(chart.type==="boxplot"){
+renderBox(chart)
+return
 }
 
-// ── TABLE ──
-function renderTable() {
-  if (!G.columns.length || !G.preview?.length) return;
-  const imp = G.column_importance;
+const card=makeCard(chart.title,chart.priority)
+grid.appendChild(card)
 
-  const headers = G.columns.map(col => {
-    const info = imp[col];
-    return `<th style="border-bottom:2px solid ${TYPE_COLOR[info.type]||'#999'}">
-      ${col}<br>
-      <span style="font-weight:400;color:var(--muted);font-size:9px">${info.type}</span>
-    </th>`;
-  }).join('');
+const canvas=card.querySelector("canvas")
 
-  const rows = G.preview.map(row => `
-    <tr>${G.columns.map(col => {
-      const val = row[col];
-      return `<td title="${val ?? ''}">${val ?? '—'}</td>`;
-    }).join('')}</tr>
-  `).join('');
+if(chart.type==="scatter"){
 
-  document.getElementById('table-wrap').innerHTML = `
-    <table>
-      <thead><tr>${headers}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+const pts=chart.x.map((x,i)=>({x,y:chart.y[i]}))
+
+chartInstances.push(new Chart(canvas,{
+type:"scatter",
+data:{datasets:[{data:pts,backgroundColor:"#2563eb"}]},
+options:{responsive:true,maintainAspectRatio:false}
+}))
+
+return
 }
 
-// ── CHARTS ──
-function renderCharts() {
-  chartInstances.forEach(c => c.destroy());
-  chartInstances = [];
-  const grid = document.getElementById('charts-grid');
-  grid.innerHTML = '';
+const type=chart.type==="histogram"?"bar":chart.type
 
-  const charts = G.charts;
+chartInstances.push(new Chart(canvas,{
+type,
+data:{
+labels:chart.labels,
+datasets:[{
+data:chart.values,
+backgroundColor:COLORS.slice(0,chart.values.length)
+}]
+},
+options:{responsive:true,maintainAspectRatio:false}
+}))
 
-  Object.entries(charts).forEach(([key, chart]) => {
-    if (chart.type === 'correlation_matrix') { renderCorrMatrix(chart, grid); return; }
-    if (chart.type === 'boxplot') { renderBoxplot(chart, grid); return; }
-    if (chart.type === 'treemap') { renderTreemap(chart, grid); return; }
-    if (chart.type === 'missing_heatmap') { renderMissingHeatmap(chart, grid); return; }
-    if (chart.type === 'stacked_bar') { renderStackedBar(chart, grid); return; }
-
-    const card = makeCard(chart.title);
-    grid.appendChild(card);
-    const canvas = card.querySelector('canvas');
-
-    if (chart.type === 'scatter') {
-      const pts = chart.x.map((x, i) => ({ x, y: chart.y[i] }));
-      chartInstances.push(new Chart(canvas, {
-        type: 'scatter',
-        data: { datasets: [{ data: pts, backgroundColor: 'rgba(37,99,235,0.5)', pointRadius: 4 }] },
-        options: scatterOpts(chart.col_x, chart.col_y),
-      }));
-    } else {
-      const type = chart.type === 'histogram' ? 'bar' : chart.type;
-      chartInstances.push(new Chart(canvas, {
-        type,
-        data: {
-          labels: chart.labels,
-          datasets: [{
-            label: chart.col_y || chart.col || '',
-            data: chart.values,
-            backgroundColor: type === 'pie'
-              ? COLORS.slice(0, chart.values.length)
-              : type === 'line' ? 'rgba(37,99,235,0.08)' : COLORS[0],
-            borderColor: type === 'line' ? '#2563eb' : undefined,
-            borderWidth: type === 'line' ? 2 : 0,
-            borderRadius: type === 'bar' ? 4 : 0,
-            tension: 0.4, fill: type === 'line',
-            pointRadius: type === 'line' ? 2 : undefined,
-          }],
-        },
-        options: baseOpts(chart.type),
-      }));
-    }
-  });
+})
 }
 
-function makeCard(title) {
-  const div = document.createElement('div');
-  div.className = 'chart-card';
-  div.innerHTML = `<div class="chart-title">${title}</div><div class="chart-wrap"><canvas></canvas></div>`;
-  return div;
+function makeCard(title,priority){
+
+const badge=priority?
+`<span class="chart-badge badge-${priority}">
+${priority}
+</span>`:""
+
+const div=document.createElement("div")
+div.className="chart-card"
+
+div.innerHTML=`
+<div class="chart-title">
+${title}
+${badge}
+</div>
+<div class="chart-wrap">
+<canvas></canvas>
+</div>
+`
+
+return div
 }
 
-function baseOpts(type) {
-  const isPie = type === 'pie';
-  return {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: isPie
-        ? { position: 'right', labels: { font: { size: 11, family: 'JetBrains Mono' }, boxWidth: 10, padding: 10, color: '#6b6b6b' } }
-        : { display: false },
-    },
-    scales: isPie ? {} : {
-      x: { ticks: { color: '#6b6b6b', font: { size: 10, family: 'JetBrains Mono' }, maxRotation: 35, autoSkip: true, maxTicksLimit: 8 }, grid: { color: '#f0f0f0' }, border: { color: '#e2e2dc' } },
-      y: { ticks: { color: '#6b6b6b', font: { size: 10, family: 'JetBrains Mono' }, callback: v => fmt(v) }, grid: { color: '#f0f0f0' }, border: { color: '#e2e2dc' } },
-    },
-  };
+function renderCorr(chart){
+
+const grid=document.getElementById("charts-grid")
+
+const div=document.createElement("div")
+div.className="chart-card"
+
+let html="<table>"
+
+chart.matrix.forEach(row=>{
+html+="<tr>"
+row.forEach(v=>{
+const c=Math.abs(v)*255
+html+=`<td style="background:rgb(255,${255-c},${255-c})">${v}</td>`
+})
+html+="</tr>"
+})
+
+html+="</table>"
+
+div.innerHTML=`
+<div class="chart-title">${chart.title}</div>
+${html}
+`
+
+grid.appendChild(div)
 }
 
-function scatterOpts(xLabel, yLabel) {
-  return {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { title: { display: true, text: xLabel, font: { size: 10, family: 'JetBrains Mono' }, color: '#6b6b6b' }, ticks: { color: '#6b6b6b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#f0f0f0' } },
-      y: { title: { display: true, text: yLabel, font: { size: 10, family: 'JetBrains Mono' }, color: '#6b6b6b' }, ticks: { color: '#6b6b6b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#f0f0f0' } },
-    },
-  };
+function renderMissing(chart){
+
+const grid=document.getElementById("charts-grid")
+
+const div=document.createElement("div")
+div.className="chart-card"
+
+div.innerHTML=`
+<div class="chart-title">Missing Values</div>
+<div class="chart-wrap">
+<canvas></canvas>
+</div>
+`
+
+grid.appendChild(div)
+
+const canvas=div.querySelector("canvas")
+
+const cols=chart.columns
+const rows=chart.rows
+
+const missing=cols.map((_,i)=>{
+let m=0
+rows.forEach(r=>{ if(r[i]) m++ })
+return (m/rows.length)*100
+})
+
+new Chart(canvas,{
+type:"bar",
+data:{
+labels:cols,
+datasets:[{
+label:"Missing %",
+data:missing,
+backgroundColor:"#ef4444"
+}]
+},
+options:{
+responsive:true,
+maintainAspectRatio:false,
+scales:{
+y:{beginAtZero:true}
+}
+}
+})
 }
 
-// ── CORRELATION MATRIX ──
-function renderCorrMatrix(chart, grid) {
-  const card = document.createElement('div');
-  card.className = 'chart-card';
-  card.style.gridColumn = 'span 2';
-  const labels = chart.labels;
-  const matrix = chart.matrix;
+function renderBox(chart){
 
-  const rows = labels.map((row, i) =>
-    `<tr>
-      <th style="text-align:right">${row}</th>
-      ${labels.map((_, j) => {
-        const v = matrix[i][j];
-        const abs = Math.abs(v);
-        const bg = v >= 0
-          ? `rgba(37,99,235,${abs.toFixed(2)})`
-          : `rgba(220,38,38,${abs.toFixed(2)})`;
-        const color = abs > 0.4 ? '#fff' : '#1a1a1a';
-        return `<td style="background:${bg};color:${color}">${v.toFixed(2)}</td>`;
-      }).join('')}
-    </tr>`).join('');
+const grid=document.getElementById("charts-grid")
 
-  card.innerHTML = `
-    <div class="chart-title">${chart.title}</div>
-    <div class="corr-wrap">
-      <table class="corr-table">
-        <thead><tr><th></th>${labels.map(l => `<th>${l}</th>`).join('')}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  grid.appendChild(card);
+const div=document.createElement("div")
+div.className="chart-card"
+
+div.innerHTML=`
+<div class="chart-title">${chart.title}</div>
+<div class="chart-wrap">
+<canvas></canvas>
+</div>
+`
+
+grid.appendChild(div)
+
+const canvas=div.querySelector("canvas")
+const ctx=canvas.getContext("2d")
+
+const groups=Object.entries(chart.groups)
+
+const height=240
+const width=380
+
+canvas.height=height
+canvas.width=width
+
+const padding=40
+const rowHeight=(height-padding)/groups.length
+
+let min=Infinity
+let max=-Infinity
+
+groups.forEach(([_,g])=>{
+if(g.insufficient_data) return
+min=Math.min(min,g.min)
+max=Math.max(max,g.max)
+})
+
+function scale(v){
+return padding+(v-min)/(max-min)*(width-padding-20)
 }
 
-// ── BOX PLOT ──
-function renderBoxplot(chart, grid) {
-  const card = document.createElement('div');
-  card.className = 'chart-card';
-  card.innerHTML = `<div class="chart-title">${chart.title}</div><div class="chart-wrap" id="bp-${Date.now()}"></div>`;
-  grid.appendChild(card);
+groups.forEach(([name,g],i)=>{
 
-  const wrap = card.querySelector('.chart-wrap');
-  const groups = chart.groups;
-  const keys = Object.keys(groups);
-  if (!keys.length) return;
+if(g.insufficient_data) return
 
-  const allVals = keys.flatMap(k => [groups[k].min, groups[k].max]);
-  const globalMin = Math.min(...allVals);
-  const globalMax = Math.max(...allVals);
-  const range = globalMax - globalMin || 1;
+const y=padding/2+i*rowHeight
 
-  const W = wrap.offsetWidth || 380;
-  const H = 200;
-  const padL = 8, padR = 8, padT = 10, padB = 24;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
-  const colW = plotW / keys.length;
+const xMin=scale(g.min)
+const xQ1=scale(g.q1)
+const xMed=scale(g.median)
+const xQ3=scale(g.q3)
+const xMax=scale(g.max)
 
-  const toY = v => padT + plotH - ((v - globalMin) / range) * plotH;
-  const toX = i => padL + i * colW + colW / 2;
+ctx.strokeStyle="#999"
+ctx.beginPath()
+ctx.moveTo(xMin,y)
+ctx.lineTo(xMax,y)
+ctx.stroke()
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', W); svg.setAttribute('height', H);
-  svg.classList.add('box-svg');
+ctx.fillStyle="#3b82f6"
+ctx.fillRect(xQ1,y-6,xQ3-xQ1,12)
 
-  keys.forEach((k, i) => {
-    const g = groups[k];
-    const x = toX(i);
-    const bw = Math.min(colW * 0.4, 30);
+ctx.strokeStyle="#000"
+ctx.beginPath()
+ctx.moveTo(xMed,y-8)
+ctx.lineTo(xMed,y+8)
+ctx.stroke()
 
-    // whiskers
-    line(svg, x, toY(g.min), x, toY(g.q1), '#d1d5db', 1);
-    line(svg, x, toY(g.q3), x, toY(g.max), '#d1d5db', 1);
-    line(svg, x - bw/2, toY(g.min), x + bw/2, toY(g.min), '#d1d5db', 1);
-    line(svg, x - bw/2, toY(g.max), x + bw/2, toY(g.max), '#d1d5db', 1);
+ctx.fillStyle="#000"
+ctx.font="10px sans-serif"
+ctx.fillText(name,5,y+3)
 
-    // box
-    const boxTop = toY(g.q3), boxBot = toY(g.q1), boxH = boxBot - boxTop;
-    rect(svg, x - bw/2, boxTop, bw, boxH, '#dbeafe', '#2563eb', 1.5);
-
-    // median
-    line(svg, x - bw/2, toY(g.median), x + bw/2, toY(g.median), '#1a1a1a', 2);
-
-    // outliers
-    g.outliers.forEach(o => circle(svg, x, toY(o), 2.5, 'rgba(220,38,38,0.6)'));
-
-    // label
-    text(svg, x, H - 6, k, '#6b6b6b', 9);
-  });
-
-  wrap.appendChild(svg);
+})
 }
 
-function line(svg, x1, y1, x2, y2, stroke, sw) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  Object.entries({ x1, y1, x2, y2, stroke, 'stroke-width': sw }).forEach(([k, v]) => el.setAttribute(k, v));
-  svg.appendChild(el);
-}
-function rect(svg, x, y, w, h, fill, stroke, sw) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  Object.entries({ x, y, width: w, height: h, fill, stroke, 'stroke-width': sw, rx: 2 }).forEach(([k, v]) => el.setAttribute(k, v));
-  svg.appendChild(el);
-}
-function circle(svg, cx, cy, r, fill) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  Object.entries({ cx, cy, r, fill }).forEach(([k, v]) => el.setAttribute(k, v));
-  svg.appendChild(el);
-}
-function text(svg, x, y, content, fill, fontSize) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  Object.entries({ x, y, fill, 'font-size': fontSize, 'text-anchor': 'middle', 'font-family': 'Inter, sans-serif' }).forEach(([k, v]) => el.setAttribute(k, v));
-  el.textContent = String(content).slice(0, 10);
-  svg.appendChild(el);
-}
-
-// ── TREEMAP ──
-function renderTreemap(chart, grid) {
-  const card = document.createElement('div');
-  card.className = 'chart-card';
-  card.innerHTML = `<div class="chart-title">${chart.title}</div><div class="treemap-wrap" id="tm-${Date.now()}"></div>`;
-  grid.appendChild(card);
-
-  const wrap = card.querySelector('.treemap-wrap');
-  const total = chart.values.reduce((a, b) => a + b, 0);
-  if (!total) return;
-
-  const W = 380, H = 220;
-  let cells = chart.labels.map((l, i) => ({ label: l, value: chart.values[i], ratio: chart.values[i] / total }));
-  cells = squarify(cells, 0, 0, W, H);
-
-  wrap.style.position = 'relative';
-  wrap.style.height = H + 'px';
-
-  cells.forEach((cell, i) => {
-    const div = document.createElement('div');
-    div.className = 'treemap-cell';
-    div.style.cssText = `left:${cell.x}px;top:${cell.y}px;width:${cell.w}px;height:${cell.h}px;background:${COLORS[i % COLORS.length]};`;
-    div.innerHTML = `<div class="treemap-label">${cell.label}<br><span style="font-size:9px;opacity:0.8">${(cell.ratio*100).toFixed(1)}%</span></div>`;
-    wrap.appendChild(div);
-  });
-}
-
-function squarify(items, x, y, w, h) {
-  if (!items.length) return [];
-  const total = items.reduce((a, b) => a + b.ratio, 0);
-  const result = [];
-  let remaining = [...items];
-  let cx = x, cy = y, cw = w, ch = h;
-
-  while (remaining.length) {
-    const isWide = cw > ch;
-    const dim = isWide ? ch : cw;
-    let row = [], rowSum = 0, best = Infinity;
-
-    for (const item of remaining) {
-      row.push(item); rowSum += item.ratio;
-      const rowDim = (rowSum / total) * (isWide ? cw : ch);
-      const worst = Math.max(...row.map(r => {
-        const rh = (r.ratio / rowSum) * dim;
-        const rw = rowDim;
-        return Math.max(rw / rh, rh / rw);
-      }));
-      if (worst > best) { row.pop(); rowSum -= item.ratio; break; }
-      best = worst;
-    }
-
-    const rowDim = (rowSum / total) * (isWide ? cw : ch);
-    let pos = isWide ? cy : cx;
-    row.forEach(item => {
-      const size = (item.ratio / rowSum) * dim;
-      if (isWide) result.push({ ...item, x: cx, y: pos, w: rowDim, h: size });
-      else result.push({ ...item, x: pos, y: cy, w: size, h: rowDim });
-      pos += size;
-    });
-
-    if (isWide) { cx += rowDim; cw -= rowDim; }
-    else { cy += rowDim; ch -= rowDim; }
-    remaining = remaining.filter(r => !row.includes(r));
-  }
-  return result;
-}
-
-// ── MISSING HEATMAP ──
-function renderMissingHeatmap(chart, grid) {
-  const card = document.createElement('div');
-  card.className = 'chart-card';
-  card.style.gridColumn = 'span 2';
-  card.innerHTML = `<div class="chart-title">${chart.title}</div><div class="heatmap-wrap"><div class="heatmap-grid" id="hmg"></div></div>`;
-  grid.appendChild(card);
-
-  const hmg = card.querySelector('.heatmap-grid');
-  chart.columns.forEach((col, ci) => {
-    const colDiv = document.createElement('div');
-    colDiv.className = 'heatmap-col';
-    colDiv.innerHTML = `<div class="heatmap-col-label">${col}</div>`;
-    chart.rows.forEach(row => {
-      const cell = document.createElement('div');
-      cell.className = 'heatmap-cell';
-      cell.style.background = row[ci] === 1 ? '#dc2626' : '#dcfce7';
-      colDiv.appendChild(cell);
-    });
-    hmg.appendChild(colDiv);
-  });
-}
-
-// ── STACKED BAR ──
-function renderStackedBar(chart, grid) {
-  const card = makeCard(chart.title);
-  grid.appendChild(card);
-  const canvas = card.querySelector('canvas');
-  const series = chart.series;
-  const keys = Object.keys(series);
-  chartInstances.push(new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels: chart.labels,
-      datasets: keys.map((k, i) => ({
-        label: k, data: series[k],
-        backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: 2,
-      })),
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top', labels: { font: { size: 10, family: 'JetBrains Mono' }, boxWidth: 10, color: '#6b6b6b' } } },
-      scales: {
-        x: { stacked: true, ticks: { color: '#6b6b6b', font: { size: 10 }, maxRotation: 35 }, grid: { color: '#f0f0f0' } },
-        y: { stacked: true, ticks: { color: '#6b6b6b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#f0f0f0' } },
-      },
-    },
-  }));
-}
-
-// ── FORMAT ──
-function fmt(n) {
-  if (n === null || n === undefined) return '—';
-  if (typeof n !== 'number') return n;
-  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-  return parseFloat(n.toFixed(2)).toLocaleString();
-}
 </script>
-</body>
-</html>
-

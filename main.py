@@ -42,11 +42,17 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not parse file: {str(e)}")
 
-    column_importance = score_columns(df)
+    # compute stats first
     stats = compute_stats(df)
-    charts = generate_chart_data(df)
 
-    preview = df.head(10).where(pd.notnull(df.head(10)), None)
+    # importance now depends on stats
+    column_importance = score_columns(stats)
+
+    # charts depend on stats
+    charts = generate_chart_data(df, stats)
+
+    preview_df = df.head(10)
+    preview = preview_df.where(pd.notnull(preview_df), None)
 
     return {
         "filename": file.filename,
