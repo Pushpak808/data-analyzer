@@ -307,6 +307,7 @@
   .p-high   { background: rgba(52,211,153,0.15); color: var(--green);  border: 1px solid rgba(52,211,153,0.2); }
   .p-medium { background: rgba(251,191,36,0.12); color: var(--amber);  border: 1px solid rgba(251,191,36,0.2); }
   .p-low    { background: rgba(107,114,128,0.15); color: var(--muted); border: 1px solid rgba(107,114,128,0.2); }
+  .rec-badge { background: linear-gradient(90deg,rgba(79,140,255,0.25),rgba(167,139,250,0.25)); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.35); }
   .chart-body { padding: 14px; position: relative; height: 220px; }
   .chart-body canvas { width: 100% !important; height: 100% !important; }
 
@@ -348,6 +349,95 @@
     min-width: 70px;
   }
   .corr-table th { background: var(--surface2); color: var(--muted); font-weight: 500; }
+
+  /* INSIGHTS PANEL */
+  .insight-card {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+    margin-bottom: 10px; transition: border-color .2s;
+  }
+  .insight-card:hover { border-color: var(--border2); }
+  .insight-icon {
+    width: 34px; height: 34px; flex-shrink: 0; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .sev-high   .insight-icon { background: rgba(248,113,113,0.15); }
+  .sev-medium .insight-icon { background: rgba(251,191,36,0.12);  }
+  .sev-low    .insight-icon { background: rgba(107,114,128,0.12); }
+  .insight-body { flex: 1; }
+  .insight-meta {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 6px;
+  }
+  .cat-badge {
+    font-size: .63rem; font-weight: 600; padding: 2px 8px; border-radius: 5px;
+    text-transform: uppercase; letter-spacing: .06em;
+    background: var(--surface2); border: 1px solid var(--border2); color: var(--muted);
+  }
+  .sev-badge {
+    font-size: .63rem; font-weight: 700; padding: 2px 8px; border-radius: 5px;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .sev-badge.high   { background: rgba(248,113,113,0.15); color: var(--red);   border: 1px solid rgba(248,113,113,0.25); }
+  .sev-badge.medium { background: rgba(251,191,36,0.12);  color: var(--amber); border: 1px solid rgba(251,191,36,0.2);   }
+  .sev-badge.low    { background: rgba(107,114,128,0.12); color: var(--muted); border: 1px solid rgba(107,114,128,0.2);  }
+  .insight-text { font-size: .84rem; line-height: 1.55; color: var(--text); }
+  .insight-cols { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .col-pill {
+    font-family: var(--font-mono); font-size: .68rem;
+    padding: 2px 8px; border-radius: 5px;
+    background: rgba(79,140,255,0.1); border: 1px solid rgba(79,140,255,0.2);
+    color: #93bbff;
+  }
+  .insights-summary {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;
+  }
+  .ins-sum-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; text-align: center;
+  }
+  .ins-sum-val  { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; }
+  .ins-sum-label{ font-size: .72rem; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .06em; }
+  .tab-badge {
+    display: inline-block; font-size: .6rem; font-weight: 700;
+    background: var(--red); color: #fff; border-radius: 10px;
+    padding: 1px 5px; margin-left: 4px; vertical-align: middle;
+    min-width: 16px; text-align: center; line-height: 14px;
+  }
+
+  /* FEATURES PANEL */
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 12px;
+    transition: border-color .2s;
+  }
+  .feature-card:hover { border-color: var(--border2); }
+  .feature-header {
+    padding: 13px 16px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px;
+    border-bottom: 1px solid var(--border); background: var(--surface2);
+  }
+  .feature-name { font-family: var(--font-mono); font-size: .82rem; font-weight: 500; color: var(--accent); }
+  .transform-badge {
+    font-size: .63rem; font-weight: 600; padding: 2px 9px; border-radius: 5px;
+    background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2);
+    color: var(--accent2); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0;
+  }
+  .feature-reason { padding: 12px 16px; font-size: .82rem; color: var(--muted); line-height: 1.5; }
+  .feature-source { padding: 0 16px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .feature-preview {
+    padding: 10px 16px; border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: .72rem; color: var(--muted);
+    background: rgba(0,0,0,0.2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .features-intro {
+    background: linear-gradient(135deg, rgba(79,140,255,0.06), rgba(167,139,250,0.06));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px; margin-bottom: 24px; font-size: .85rem; line-height: 1.6;
+    color: var(--muted);
+  }
+  .features-intro strong { color: var(--text); }
 
   /* scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -415,8 +505,10 @@
       <div class="topbar-title" id="topbar-title">Analysis</div>
       <div class="topbar-tabs">
         <div class="tab active" onclick="switchTab('overview')">Overview</div>
+        <div class="tab" onclick="switchTab('insights')">Insights <span id="insights-badge" class="tab-badge"></span></div>
         <div class="tab" onclick="switchTab('charts')">Charts</div>
         <div class="tab" onclick="switchTab('stats')">Statistics</div>
+        <div class="tab" onclick="switchTab('features')">Features</div>
       </div>
     </div>
 
@@ -429,13 +521,23 @@
       </div>
     </div>
 
+    <!-- INSIGHTS PANEL -->
+    <div class="panel" id="insights-panel">
+      <div id="insights-list"></div>
+    </div>
+
+    <!-- FEATURES PANEL -->
+    <div class="panel" id="features-panel">
+      <div id="features-list"></div>
+    </div>
+
     <!-- CHARTS PANEL -->
     <div class="panel" id="charts-panel">
       <div class="filter-bar" id="filter-bar">
         <button class="filter-btn active" onclick="filterCharts('all', this)">All</button>
-        <button class="filter-btn" onclick="filterCharts('high', this)">⬤ High Priority</button>
-        <button class="filter-btn" onclick="filterCharts('medium', this)">⬤ Medium</button>
-        <button class="filter-btn" onclick="filterCharts('low', this)">⬤ Low</button>
+        <button class="filter-btn" onclick="filterCharts('recommended', this)">✦ Recommended</button>
+        <button class="filter-btn" onclick="filterCharts('high', this)">● High</button>
+        <button class="filter-btn" onclick="filterCharts('low', this)">● Low</button>
       </div>
       <div id="charts-grid"></div>
     </div>
@@ -504,8 +606,8 @@ function resetToUpload() {
 
 // ── Tabs ─────────────────────────────────────────
 function switchTab(name) {
-  document.querySelectorAll(".tab").forEach((t,i) => {
-    const names = ["overview","charts","stats"];
+  const names = ["overview","insights","charts","stats","features"];
+  document.querySelectorAll(".tab").forEach((t, i) => {
     t.classList.toggle("active", names[i] === name);
   });
   document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
@@ -516,13 +618,14 @@ function switchTab(name) {
 function buildDashboard() {
   document.getElementById("sb-filename").textContent = G.filename || "—";
   document.getElementById("sb-rows").textContent = fmt(G.rows);
-  document.getElementById("sb-cols").textContent = G.columns.length;
+  document.getElementById("sb-cols").textContent = (G.columns || []).length;
   document.getElementById("topbar-title").textContent = G.filename || "Analysis";
 
-  buildSidebar();
-  buildOverview();
-  buildCharts();
-  buildStats();
+  const steps = [buildSidebar, buildOverview, buildInsights, buildFeatures, buildCharts, buildStats];
+  steps.forEach(fn => {
+    try { fn(); }
+    catch(e) { console.error(`[DataSage] ${fn.name} failed:`, e); }
+  });
 }
 
 // ── Sidebar columns ───────────────────────────────
@@ -542,24 +645,25 @@ function buildSidebar() {
 
 // ── Overview Panel ────────────────────────────────
 function buildOverview() {
+  const tc  = G.type_counts || {};
+  const q   = G.quality    || {};
   const imp = G.column_importance;
-  const imp_vals = Object.values(imp);
-  const importantCount = imp_vals.filter(x => x.label === "important").length;
-  const missingCols = imp_vals.filter(x => x.missing_rate > 10).length;
-  const numericCols = Object.values(G.stats).filter(x => x.type === "numeric").length;
+  const importantCount = Object.values(imp).filter(x => x.label === "important").length;
 
   const cards = [
-    { val: fmt(G.rows),   label: "Total Rows" },
-    { val: G.columns.length, label: "Columns" },
-    { val: numericCols,   label: "Numeric Columns" },
-    { val: importantCount, label: "Key Columns" },
-    { val: missingCols,   label: "Columns w/ Gaps" },
-    { val: Object.keys(G.charts).length, label: "Charts Generated" },
+    { val: fmt(G.rows),          label: "Total Rows",        accent: "var(--accent)" },
+    { val: G.columns.length,     label: "Columns",           accent: "var(--accent2)" },
+    { val: tc.numeric  || 0,     label: "Numeric",           accent: "#38bdf8" },
+    { val: tc.categorical || 0,  label: "Categorical",       accent: "#a78bfa" },
+    { val: tc.date     || 0,     label: "Date / Time",       accent: "var(--green)" },
+    { val: importantCount,       label: "Key Columns",       accent: "var(--amber)" },
+    { val: (q.overall_missing_pct || 0) + "%", label: "Missing Data", accent: q.overall_missing_pct > 10 ? "var(--red)" : "var(--green)" },
+    { val: Object.keys(G.charts).length, label: "Charts Generated", accent: "var(--muted)" },
   ];
 
   document.getElementById("overview-grid").innerHTML = cards.map(c => `
     <div class="overview-card">
-      <div class="ov-val">${c.val}</div>
+      <div class="ov-val" style="color:${c.accent}">${c.val}</div>
       <div class="ov-label">${c.label}</div>
     </div>`).join("");
 
@@ -581,102 +685,431 @@ function buildOverview() {
 }
 
 // ── Charts Panel ──────────────────────────────────
+// ── Charts Panel ──────────────────────────────────
 function buildCharts() {
   chartInstances.forEach(c => c.destroy());
   chartInstances = [];
-  allChartCards = [];
+  allChartCards  = [];
 
   const grid = document.getElementById("charts-grid");
   grid.innerHTML = "";
 
   const entries = Object.entries(G.charts);
-  const order = { high: 0, medium: 1, low: 2 };
-  entries.sort((a,b) => (order[a[1].priority || "medium"] - order[b[1].priority || "medium"]));
+  // recommended first, then high priority, then low
+  entries.sort((a, b) => {
+    const ar = a[1].recommended ? 0 : (a[1].priority === "high" ? 1 : 2);
+    const br = b[1].recommended ? 0 : (b[1].priority === "high" ? 1 : 2);
+    return ar - br;
+  });
 
   entries.forEach(([key, chart]) => {
-    if (chart.type === "missing_heatmap") {
-      const card = buildMissingCard(chart);
-      allChartCards.push({ card, priority: chart.priority || "medium" });
-      grid.appendChild(card);
-      return;
-    }
-    if (chart.type === "correlation_matrix") {
-      const card = buildCorrCard(chart);
-      allChartCards.push({ card, priority: chart.priority || "high" });
-      grid.appendChild(card);
-      return;
-    }
-    if (chart.type === "boxplot") {
-      const card = buildBoxCard(chart);
-      allChartCards.push({ card, priority: chart.priority || "medium" });
-      grid.appendChild(card);
-      return;
-    }
-
-    const card = makeCard(chart.title, chart.priority);
-    allChartCards.push({ card, priority: chart.priority || "medium" });
-    grid.appendChild(card);
-
-    const canvas = card.querySelector("canvas");
-    const inst = buildChartJS(canvas, chart);
-    if (inst) chartInstances.push(inst);
+    try {
+      let card;
+      switch (chart.type) {
+        case "missing_heatmap":    card = buildMissingCard(chart);    break;
+        case "correlation_matrix": card = buildCorrCard(chart);        break;
+        case "boxplot":            card = buildBoxCard(chart);         break;
+        case "violin":             card = buildViolinCard(chart);      break;
+        case "lollipop":           card = buildLollipopCard(chart);    break;
+        case "donut":              card = buildDonutCard(chart);       break;
+        case "treemap":            card = buildTreemapCard(chart);     break;
+        case "stacked_bar":        card = buildStackedBarCard(chart);  break;
+        case "heatmap":            card = buildHeatmapCard(chart);     break;
+        case "density":            card = buildDensityCard(chart);     break;
+        case "area":               card = buildAreaCard(chart);        break;
+        default:                   card = buildChartJSCard(chart);     break;
+      }
+      if (card) {
+        // "recommended" badge
+        if (chart.recommended) card.dataset.recommended = "1";
+        allChartCards.push({ card, priority: chart.priority || "medium", recommended: !!chart.recommended });
+        grid.appendChild(card);
+      }
+    } catch(e) { console.warn("Chart render failed:", key, e); }
   });
 }
 
-function makeCard(title, priority) {
-  const div = document.createElement("div");
+function makeCard(title, priority, recommended) {
+  const div   = document.createElement("div");
   div.className = "chart-card";
-  const badge = priority ? `<span class="priority-badge p-${priority}">${priority}</span>` : "";
+  const recBadge = recommended ? `<span class="priority-badge rec-badge">✦ Recommended</span>` : "";
+  const priClass = recommended ? "p-high" : `p-${priority}`;
+  const priBadge = !recommended && priority ? `<span class="priority-badge ${priClass}">${priority}</span>` : "";
   div.innerHTML = `
     <div class="chart-header">
       <div class="chart-title">${title}</div>
-      ${badge}
+      <div style="display:flex;gap:6px">${recBadge}${priBadge}</div>
     </div>
     <div class="chart-body"><canvas></canvas></div>`;
   return div;
 }
 
-function buildChartJS(canvas, chart) {
-  const opts = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: chart.type === "pie", labels: { color: "#9ca3af", font: { size: 11 } } } },
-    scales: chart.type !== "pie" && chart.type !== "scatter" ? {
-      x: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
-      y: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
-    } : undefined
+// ── Generic Chart.js card ─────────────────────────
+function buildChartJSCard(chart) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended);
+  const canvas = card.querySelector("canvas");
+
+  const baseScales = {
+    x: { ticks: { color: "#6b7280", font: { size: 10 }, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.04)" } },
+    y: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
   };
 
+  // SCATTER
   if (chart.type === "scatter") {
-    const pts = chart.x.map((x,i) => ({ x, y: chart.y[i] }));
-    return new Chart(canvas, {
+    const pts = (chart.x || []).map((x, i) => ({ x, y: (chart.y || [])[i] }))
+                               .filter(p => p.x != null && p.y != null);
+    chartInstances.push(new Chart(canvas, {
       type: "scatter",
-      data: { datasets: [{ data: pts, backgroundColor: "rgba(79,140,255,0.6)", pointRadius: 4 }] },
-      options: { ...opts, plugins: { legend: { display: false } } }
-    });
+      data: { datasets: [{ data: pts, backgroundColor: "rgba(79,140,255,0.55)", pointRadius: 3.5 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: baseScales,
+      }
+    }));
+    return card;
   }
 
-  const type = chart.type === "histogram" ? "bar" : chart.type;
-  const bgColors = chart.type === "pie"
-    ? PALETTE.slice(0, chart.values.length)
-    : chart.values.map((_, i) => PALETTE[i % PALETTE.length]);
+  // PIE
+  if (chart.type === "pie") {
+    chartInstances.push(new Chart(canvas, {
+      type: "pie",
+      data: {
+        labels: chart.labels,
+        datasets: [{ data: chart.values, backgroundColor: PALETTE.slice(0, (chart.values || []).length), borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: "right", labels: { color: "#9ca3af", font: { size: 10 }, boxWidth: 12 } } }
+      }
+    }));
+    return card;
+  }
 
-  return new Chart(canvas, {
-    type,
+  // LINE / AREA / HISTOGRAM / BAR
+  const isLine  = chart.type === "line" || chart.type === "area";
+  const isHisto = chart.type === "histogram";
+  const cjsType = isLine ? "line" : "bar";
+  const values  = (chart.values || []).map(v => v === null ? null : +v);
+
+  chartInstances.push(new Chart(canvas, {
+    type: cjsType,
     data: {
-      labels: chart.labels,
+      labels: chart.labels || [],
       datasets: [{
-        data: chart.values,
-        backgroundColor: bgColors,
-        borderColor: chart.type === "line" ? "#4f8cff" : undefined,
-        borderWidth: chart.type === "line" ? 2 : 0,
-        fill: chart.type === "line" ? false : undefined,
-        tension: chart.type === "line" ? 0.4 : undefined,
-        pointRadius: chart.type === "line" ? 3 : undefined,
-        pointBackgroundColor: chart.type === "line" ? "#4f8cff" : undefined,
+        data: values,
+        backgroundColor: isLine
+          ? (chart.type === "area" ? "rgba(79,140,255,0.15)" : "transparent")
+          : (chart.values || []).map((_, i) => PALETTE[i % PALETTE.length]),
+        borderColor:  isLine ? "#4f8cff" : undefined,
+        borderWidth:  isLine ? 2 : 0,
+        fill:         chart.type === "area",
+        tension:      isLine ? 0.35 : undefined,
+        pointRadius:  isLine ? (values.length > 60 ? 0 : 3) : undefined,
+        pointBackgroundColor: isLine ? "#4f8cff" : undefined,
       }]
     },
-    options: opts
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: baseScales,
+    }
+  }));
+  return card;
+}
+
+// ── Density ───────────────────────────────────────
+function buildDensityCard(chart) {
+  const card = makeCard(chart.title, chart.priority, chart.recommended);
+  const canvas = card.querySelector("canvas");
+  const values = (chart.values || []).map(v => v === null ? null : +v);
+  chartInstances.push(new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: chart.labels || [],
+      datasets: [{
+        data: values,
+        borderColor: "#a78bfa",
+        backgroundColor: "rgba(167,139,250,0.12)",
+        borderWidth: 2, fill: true, tension: 0.4,
+        pointRadius: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.03)" } },
+        y: { ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Area ──────────────────────────────────────────
+function buildAreaCard(chart) {
+  const card = makeCard(chart.title, chart.priority, chart.recommended);
+  const canvas = card.querySelector("canvas");
+  const values = (chart.values || []).map(v => v === null ? null : +v);
+  chartInstances.push(new Chart(canvas, {
+    type: "line",
+    data: {
+      labels: chart.labels || [],
+      datasets: [{
+        data: values,
+        borderColor: "#34d399",
+        backgroundColor: "rgba(52,211,153,0.12)",
+        borderWidth: 2, fill: true, tension: 0.35,
+        pointRadius: values.length > 80 ? 0 : 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.03)" } },
+        y: { ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Lollipop ──────────────────────────────────────
+function buildLollipopCard(chart) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended);
+  const body   = card.querySelector(".chart-body");
+  const canvas = body.querySelector("canvas");
+  const labels = chart.labels || [];
+  const values = chart.values || [];
+
+  if (!labels.length) return card;
+
+  const maxVal = Math.max(...values.filter(v => v != null));
+
+  chartInstances.push(new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          type: "bar",
+          data: values,
+          backgroundColor: "transparent",
+          borderColor: "transparent",
+          barThickness: 2,
+        },
+        {
+          type: "scatter",
+          data: values.map((v, i) => ({ x: i, y: v })),
+          backgroundColor: PALETTE.slice(0, values.length).map((c, i) => PALETTE[i % PALETTE.length]),
+          pointRadius: 7,
+          pointHoverRadius: 9,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { beginAtZero: true, ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Donut ─────────────────────────────────────────
+function buildDonutCard(chart) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended);
+  const body   = card.querySelector(".chart-body");
+  const canvas = body.querySelector("canvas");
+  chartInstances.push(new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels: chart.labels || [],
+      datasets: [{
+        data: chart.values || [],
+        backgroundColor: PALETTE.slice(0, (chart.values || []).length),
+        borderWidth: 0,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: "right", labels: { color: "#9ca3af", font: { size: 10 }, boxWidth: 12 } }
+      },
+      cutout: "60%",
+    }
+  }));
+  return card;
+}
+
+// ── Treemap ───────────────────────────────────────
+function buildTreemapCard(chart) {
+  const card = makeCard(chart.title, chart.priority, chart.recommended);
+  const body = card.querySelector(".chart-body");
+  body.innerHTML = "";
+
+  const labels = chart.labels || [];
+  const values = chart.values || [];
+  const total  = values.reduce((s, v) => s + (v || 0), 0);
+  if (total === 0) return card;
+
+  const container = document.createElement("div");
+  container.style.cssText = "width:100%;height:100%;display:flex;flex-wrap:wrap;gap:3px;padding:6px;box-sizing:border-box;overflow:hidden;";
+
+  const maxVal = Math.max(...values);
+  labels.forEach((label, i) => {
+    const val = values[i] || 0;
+    const pct = val / total;
+    const w   = Math.max(8, Math.sqrt(pct) * 100);
+    const alpha = 0.25 + (val / maxVal) * 0.55;
+    const color = PALETTE[i % PALETTE.length];
+
+    const cell = document.createElement("div");
+    cell.style.cssText = `
+      flex: ${pct} 0 ${w}%;
+      min-width:30px; min-height:28px;
+      background:${color}${Math.round(alpha*255).toString(16).padStart(2,'0')};
+      border:1px solid ${color}44;
+      border-radius:5px;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      overflow:hidden; padding:3px;
+      cursor:default;
+    `;
+    cell.title = `${label}: ${val.toLocaleString()}`;
+    cell.innerHTML = `
+      <div style="font-size:.65rem;font-family:var(--font-mono);color:#fff;text-align:center;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${label}</div>
+      <div style="font-size:.6rem;color:rgba(255,255,255,0.65)">${val.toLocaleString()}</div>
+    `;
+    container.appendChild(cell);
   });
+
+  body.appendChild(container);
+  return card;
+}
+
+// ── Stacked Bar ───────────────────────────────────
+function buildStackedBarCard(chart) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended);
+  card.className += " wide";
+  const canvas = card.querySelector("canvas");
+  const series = chart.series || {};
+  const keys   = Object.keys(series);
+
+  chartInstances.push(new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: chart.labels || [],
+      datasets: keys.map((k, i) => ({
+        label: k,
+        data:  series[k],
+        backgroundColor: PALETTE[i % PALETTE.length] + "cc",
+        borderWidth: 0,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color: "#9ca3af", font: { size: 10 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.03)" } },
+        y: { stacked: true, ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Heatmap ───────────────────────────────────────
+function buildHeatmapCard(chart) {
+  const card = makeCard(chart.title, chart.priority, chart.recommended);
+  card.className += " wide";
+  const body = card.querySelector(".chart-body");
+  body.style.height = "auto";
+  body.style.overflowX = "auto";
+  body.style.padding = "12px";
+
+  const xLabels = chart.x_labels || chart.labels || [];
+  const yLabels = chart.y_labels || [chart.col_y || "value"];
+  const matrix  = chart.matrix  || (chart.values || []).map(v => [v]);
+
+  if (!xLabels.length || !matrix.length) return card;
+
+  // find min/max for colour scaling
+  const flat = matrix.flat().filter(v => v != null);
+  const minV = Math.min(...flat);
+  const maxV = Math.max(...flat);
+  const range = maxV - minV || 1;
+
+  let html = `<table style="border-collapse:collapse;font-size:.68rem;font-family:var(--font-mono)">
+    <thead><tr><th style="padding:4px 8px;color:var(--muted)"></th>
+    ${xLabels.map(l => `<th style="padding:4px 8px;color:var(--muted);white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis" title="${l}">${String(l).substring(0,7)}</th>`).join("")}
+    </tr></thead><tbody>`;
+
+  matrix.forEach((row, ri) => {
+    const yLabel = yLabels[ri] || "";
+    html += `<tr><th style="padding:4px 8px;color:var(--muted);text-align:left;white-space:nowrap">${String(yLabel).substring(0,10)}</th>`;
+    row.forEach(v => {
+      if (v == null) { html += `<td style="padding:4px 8px;border:1px solid var(--border)">—</td>`; return; }
+      const t   = (v - minV) / range;
+      const bg  = `rgba(79,140,255,${(0.1 + t * 0.7).toFixed(2)})`;
+      const txt = t > 0.6 ? "#fff" : "var(--muted)";
+      html += `<td style="padding:4px 8px;background:${bg};color:${txt};text-align:center;border:1px solid var(--border)">${typeof v === "number" ? v.toFixed(1) : v}</td>`;
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  body.innerHTML = html;
+  return card;
+}
+
+// ── Violin ────────────────────────────────────────
+function buildViolinCard(chart) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended);
+  const body   = card.querySelector(".chart-body");
+  body.innerHTML = "";
+
+  const groups  = Object.entries(chart.groups || {}).filter(([,g]) => !g.insufficient_data);
+  if (!groups.length) {
+    body.innerHTML = `<div style="color:var(--muted);padding:20px;text-align:center;font-size:.8rem">Insufficient data</div>`;
+    return card;
+  }
+
+  const canvas = document.createElement("canvas");
+  body.appendChild(canvas);
+
+  // Render as grouped box (violin KDE rendering needs WebGL; use box as proxy)
+  const labels  = groups.map(([name]) => name);
+  const medians = groups.map(([,g]) => g.median ?? null);
+  const q1s     = groups.map(([,g]) => g.q1 ?? null);
+  const q3s     = groups.map(([,g]) => g.q3 ?? null);
+
+  chartInstances.push(new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        { label: "Q1–Median", data: medians.map((m, i) => m != null && q1s[i] != null ? m - q1s[i] : null), backgroundColor: "rgba(79,140,255,0.25)", borderWidth: 0 },
+        { label: "Median–Q3", data: q3s.map((q3, i) => q3 != null && medians[i] != null ? q3 - medians[i] : null), backgroundColor: "rgba(79,140,255,0.55)", borderWidth: 0 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color: "#9ca3af", font: { size: 9 }, boxWidth: 10 } } },
+      scales: {
+        x: { stacked: true, ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } },
+        y: { stacked: true, ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+      }
+    }
+  }));
+  return card;
 }
 
 function buildBoxCard(chart) {
@@ -694,7 +1127,15 @@ function buildBoxCard(chart) {
   }
 
   let min = Infinity, max = -Infinity;
-  groups.forEach(([,g]) => { min = Math.min(min, g.min); max = Math.max(max, g.max); });
+  groups.forEach(([,g]) => {
+    if (g.min != null) min = Math.min(min, g.min);
+    if (g.max != null) max = Math.max(max, g.max);
+  });
+
+  if (!isFinite(min) || !isFinite(max) || min === max) {
+    body.innerHTML = `<div style="color:var(--muted);font-size:.8rem;padding:20px;text-align:center">Insufficient data to render</div>`;
+    return div;
+  }
 
   const height = 220, width = canvas.parentElement.offsetWidth || 340;
   const padL = 90, padR = 20, padT = 20, padB = 20;
@@ -733,13 +1174,20 @@ function buildMissingCard(chart) {
   const div = makeCard("Missing Values", chart.priority || "high");
   const canvas = div.querySelector("canvas");
 
-  const cols = chart.columns;
-  const rows = chart.rows;
-  const missing = cols.map((_, i) => {
-    let m = 0;
-    rows.forEach(r => { if (r[i]) m++; });
-    return +(m / rows.length * 100).toFixed(1);
-  });
+  const cols = chart.columns || [];
+  // new API sends pre-computed missing_pcts; fall back to row-counting for old responses
+  let missing;
+  if (chart.missing_pcts && chart.missing_pcts.length === cols.length) {
+    missing = chart.missing_pcts.map(v => +(v || 0).toFixed(1));
+  } else {
+    const rows = chart.rows || [];
+    missing = cols.map((_, i) => {
+      if (!rows.length) return 0;
+      let m = 0;
+      rows.forEach(r => { if (r && r[i]) m++; });
+      return +(m / rows.length * 100).toFixed(1);
+    });
+  }
 
   chartInstances.push(new Chart(canvas, {
     type: "bar",
@@ -776,8 +1224,11 @@ function buildCorrCard(chart) {
   matrix.forEach((row, i) => {
     html += `<tr><th style="padding:6px 8px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);text-align:left;white-space:nowrap">${labels[i].substring(0,10)}</th>`;
     row.forEach(v => {
+      if (v === null || v === undefined) {
+        html += `<td style="padding:6px 8px;text-align:center;border:1px solid var(--border);color:var(--muted)">—</td>`;
+        return;
+      }
       const abs = Math.abs(v);
-      const r = Math.round(255 * (1 - abs));
       const bg = v > 0.3 ? `rgba(79,140,255,${abs * 0.5})` : v < -0.3 ? `rgba(248,113,113,${abs * 0.5})` : "transparent";
       html += `<td style="padding:6px 8px;text-align:center;border:1px solid var(--border);background:${bg};color:${abs > 0.5 ? '#fff' : 'var(--muted)'}">${v.toFixed(2)}</td>`;
     });
@@ -789,11 +1240,16 @@ function buildCorrCard(chart) {
 }
 
 // ── Filter Charts ─────────────────────────────────
-function filterCharts(priority, btn) {
+function filterCharts(filter, btn) {
   document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  allChartCards.forEach(({ card, priority: p }) => {
-    card.style.display = (priority === "all" || p === priority) ? "" : "none";
+  allChartCards.forEach(({ card, priority, recommended }) => {
+    let show = false;
+    if (filter === "all")         show = true;
+    else if (filter === "recommended") show = !!recommended;
+    else if (filter === "high")   show = priority === "high";
+    else if (filter === "low")    show = priority === "low";
+    card.style.display = show ? "" : "none";
   });
 }
 
@@ -855,13 +1311,114 @@ function buildStatRows(st) {
   return picked.map(k => {
     let v = st[k];
     if (v === undefined || v === null) return "";
-    if (typeof v === "number") v = +v.toFixed(4);
+    if (typeof v === "number" && isFinite(v)) v = +v.toFixed(4);
     return `<div class="stat-row"><span class="stat-row-key">${labels[k] || k}</span><span class="stat-row-val">${v}</span></div>`;
   }).join("");
 }
 
+// ── Insights Panel ────────────────────────────────
+function buildInsights() {
+  const insights = G.insights || [];
+  const el = document.getElementById("insights-list");
+
+  // badge on tab
+  const highCount = insights.filter(i => i.severity === "high").length;
+  const badge = document.getElementById("insights-badge");
+  if (highCount > 0) { badge.textContent = highCount; badge.style.display = "inline-block"; }
+  else badge.style.display = "none";
+
+  if (insights.length === 0) {
+    el.innerHTML = `<div style="color:var(--muted);padding:40px;text-align:center;font-size:.9rem">No insights generated.</div>`;
+    return;
+  }
+
+  const high   = insights.filter(i => i.severity === "high").length;
+  const medium = insights.filter(i => i.severity === "medium").length;
+  const low    = insights.filter(i => i.severity === "low").length;
+
+  const ICONS = {
+    data_quality: "🔍", distribution: "📊", correlation: "🔗",
+    trend: "📈", categorical: "🏷️", feature: "⭐"
+  };
+  const SEV_ICON = { high: "🔴", medium: "🟡", low: "⚪" };
+
+  let html = `
+    <div class="insights-summary">
+      <div class="ins-sum-card"><div class="ins-sum-val" style="color:var(--red)">${high}</div><div class="ins-sum-label">High Priority</div></div>
+      <div class="ins-sum-card"><div class="ins-sum-val" style="color:var(--amber)">${medium}</div><div class="ins-sum-label">Medium</div></div>
+      <div class="ins-sum-card"><div class="ins-sum-val" style="color:var(--muted)">${low}</div><div class="ins-sum-label">Low</div></div>
+    </div>`;
+
+  insights.forEach(ins => {
+    const icon  = ICONS[ins.category] || "💡";
+    const pills = (ins.cols || []).map(c => `<span class="col-pill">${c}</span>`).join("");
+    html += `
+      <div class="insight-card sev-${ins.severity}">
+        <div class="insight-icon">${icon}</div>
+        <div class="insight-body">
+          <div class="insight-meta">
+            <span class="sev-badge ${ins.severity}">${ins.severity}</span>
+            <span class="cat-badge">${ins.category.replace("_"," ")}</span>
+          </div>
+          <div class="insight-text">${ins.text}</div>
+          ${pills ? `<div class="insight-cols">${pills}</div>` : ""}
+        </div>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// ── Features Panel ────────────────────────────────
+function buildFeatures() {
+  const features = (G.features && G.features.engineered) || [];
+  const el = document.getElementById("features-list");
+
+  const TRANSFORM_LABELS = {
+    log1p: "Log Transform", sqrt: "Square Root", z_score: "Z-Score",
+    quartile_bin: "Quartile Bins", extract_year: "Year", extract_month: "Month",
+    extract_dayofweek: "Day of Week", extract_quarter: "Quarter", is_weekend: "Weekend Flag",
+    frequency_encode: "Freq Encode", ratio: "Ratio"
+  };
+
+  let html = `
+    <div class="features-intro">
+      <strong>${features.length} engineered feature${features.length !== 1 ? "s" : ""} suggested</strong> — 
+      These are derived columns your analyzer can create automatically to improve model performance and analytical depth.
+      Each transformation is applied based on the statistical properties of the source column.
+    </div>`;
+
+  if (features.length === 0) {
+    html += `<div style="color:var(--muted);padding:40px;text-align:center;font-size:.9rem">No feature suggestions for this dataset.</div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  features.forEach(f => {
+    const label   = TRANSFORM_LABELS[f.transform] || f.transform;
+    const sources = (f.source_cols || []).map(c => `<span class="col-pill">${c}</span>`).join("");
+    const preview = (f.values || []).slice(0, 12)
+      .map(v => (v === null || v === undefined) ? "null" : (typeof v === "number" && isFinite(v) ? v.toFixed(3) : String(v)))
+      .join(", ");
+
+    html += `
+      <div class="feature-card">
+        <div class="feature-header">
+          <span class="feature-name">${f.name}</span>
+          <span class="transform-badge">${label}</span>
+        </div>
+        <div class="feature-reason">${f.reason}</div>
+        <div class="feature-source">${sources}</div>
+        <div class="feature-preview">Preview: ${preview}…</div>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
 // ── Helpers ───────────────────────────────────────
 function fmt(n) {
+  if (n == null || isNaN(n)) return "—";
   if (n >= 1e6) return (n/1e6).toFixed(1)+"M";
   if (n >= 1e3) return (n/1e3).toFixed(1)+"K";
   return n;

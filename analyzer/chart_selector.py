@@ -1,168 +1,240 @@
 """
 analyzer/chart_selector.py
 ──────────────────────────
-Recommends the best chart type for a given column or column pair,
-using a weighted scoring engine driven by column statistics.
+Chart selection engine based on the "From Data to Viz" decision tree
+by Yan Holtz & Conor Healy (data-to-viz.com).
 
-Each chart type accumulates evidence points; the highest scorer wins.
-Weights and thresholds are centralised at the top for easy tuning.
+Two entry points:
+  choose_univariate_chart(stats, col_type, intent=None)
+  choose_bivariate_chart(type_x, type_y, stats_x, stats_y, intent=None)
+
+intent (optional string):
+  "distribution"  – how values are spread
+  "composition"   – parts of a whole
+  "ranking"       – ordered comparison
+  "correlation"   – relationship between two variables
+  "trend"         – change over time / sequence
+  "comparison"    – compare groups side by side
+
+When intent is supplied the tree follows the matching deterministic branch.
+When intent is None the engine infers the best intent from statistics,
+then routes through the same tree — both paths share identical logic.
+
+Chart type strings returned (superset of old selector):
+  histogram, density, boxplot, violin, ridgeline,
+  bar, lollipop, grouped_bar, stacked_bar,
+  pie, donut, treemap,
+  line, area,
+  scatter, bubble, heatmap,
+  table
 """
 
 from __future__ import annotations
 
 
 # ══════════════════════════════════════════════════════════════
-# WEIGHTS  (evidence points per signal)
-# ══════════════════════════════════════════════════════════════
-
-_W = {
-    # histogram
-    "hist_base":          2,
-    "hist_skew":          2,
-    "hist_entropy":       1,
-    "hist_variance":      1,
-    "hist_many_vals":     1,
-
-    # box
-    "box_outliers":       4,
-    "box_skew":           1,
-    "box_variance":       1,
-
-    # bar
-    "bar_base":           2,
-    "bar_few_cats":       2,
-    "bar_entropy":        1,
-
-    # pie
-    "pie_small":          2,
-    "pie_balance":        1,
-    "pie_binary":         2,
-    "pie_penalty_large":  -3,
-
-    # line
-    "line_time":          5,
-    "line_monotonic":     3,
-
-    # scatter
-    "scatter_base":       3,
-    "scatter_entropy":    1,
-
-    # stacked bar
-    "stacked_base":       3,
-
-    # grouped bar / box
-    "grouped_bar_few":    3,
-    "grouped_box_many":   3,
-    "grouped_box_var":    1,
-}
-
-# ══════════════════════════════════════════════════════════════
 # THRESHOLDS
 # ══════════════════════════════════════════════════════════════
 
 _T = {
-    "skew_high":            1.0,
-    "entropy_numeric_high": 2.5,
-    "entropy_cat_high":     1.5,
-    "outlier_pct_high":     5.0,
-    "variance_high":        1.0,
-    "cv_high":              50.0,
-    "pie_max_unique":       6,
-    "bar_few_unique":       15,
-    "cat_many_unique":      12,
+    "cat_binary":    2,
+    "cat_few":       6,
+    "cat_medium":    12,
+    "cat_many":      30,
+    "skew_high":     1.0,
+    "skew_moderate": 0.5,
+    "outlier_high":  5.0,
+    "cv_high":       50.0,
+    "entropy_high":  2.5,
+    "groups_few":    5,
+    "groups_many":   12,
+    "balance_min":   0.3,
+    "n_dense":       500,
 }
 
 
 # ══════════════════════════════════════════════════════════════
-# UNIVARIATE
+# INTENT INFERENCE
 # ══════════════════════════════════════════════════════════════
 
-def choose_univariate_chart(stats: dict, col_type: str) -> str:
-    if col_type == "numeric":
-        scores = _univar_numeric(stats)
-    elif col_type == "categorical":
-        scores = _univar_categorical(stats)
-    elif col_type == "date":
+def _infer_univariate_intent(stats: dict, col_type: str) -> str:
+    if col_type == "date":
+        return "trend"
+    if col_type == "text":
+        return "distribution"
+
+    if col_type == "categorical":
+        unique   = stats.get("unique_count") or 0
+        dom_rate = stats.get("dominant_rate") or 0
+        if dom_rate >= 50 and unique <= _T["cat_few"]:
+            return "composition"
+        return "ranking"
+
+    # numeric
+    monotonic = stats.get("monotonic", False)
+    outlier_r = stats.get("outlier_ratio") or 0
+    skew      = abs(stats.get("skewness") or 0)
+
+    if monotonic:
+        return "trend"
+    return "distribution"
+
+
+def _infer_bivariate_intent(
+    type_x: str, type_y: str,
+    sx: dict, sy: dict,
+) -> str:
+    if "date" in (type_x, type_y):
+        return "trend"
+
+    if type_x == "numeric" and type_y == "numeric":
+        if _is_monotonic(sx) or _is_monotonic(sy):
+            return "trend"
+        return "correlation"
+
+    if "categorical" in (type_x, type_y) and "numeric" in (type_x, type_y):
+        cat_s = sx if type_x == "categorical" else sy
+        unique = cat_s.get("unique_count") or 0
+        if unique <= _T["cat_few"]:
+            return "composition"
+        return "comparison"
+
+    if type_x == "categorical" and type_y == "categorical":
+        return "composition"
+
+    return "comparison"
+
+
+# ══════════════════════════════════════════════════════════════
+# UNIVARIATE  — public entry point
+# ══════════════════════════════════════════════════════════════
+
+def choose_univariate_chart(
+    stats: dict,
+    col_type: str,
+    intent: str | None = None,
+) -> str:
+    if col_type == "date":
         return "line"
-    else:
+    if col_type == "text":
         return "table"
 
-    best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else "table"
+    if intent is None:
+        intent = _infer_univariate_intent(stats, col_type)
+
+    if col_type == "numeric":
+        return _numeric_univar(stats, intent)
+    if col_type == "categorical":
+        return _categorical_univar(stats, intent)
+    return "table"
 
 
-def _univar_numeric(s: dict) -> dict:
-    sc = dict(histogram=0, box=0, bar=0, pie=0, line=0)
+# ── Numeric branch ────────────────────────────────────────────
+#
+# From Data to Viz — NUMERIC tree:
+#
+#  One variable
+#    └─ distribution?
+#         ├─ outliers present  → BOXPLOT
+#         ├─ large n, smooth   → DENSITY
+#         └─ otherwise         → HISTOGRAM
+#  Trend?           → LINE
+#  Ranking?         → HISTOGRAM (value frequency)
 
+def _numeric_univar(s: dict, intent: str) -> str:
     skew      = abs(s.get("skewness") or 0)
-    entropy   = s.get("numeric_entropy") or 0
-    variance  = s.get("variance_score") or 0
-    cv        = s.get("cv_pct") or 0
     outlier_r = s.get("outlier_ratio") or 0
     monotonic = s.get("monotonic", False)
     n_valid   = s.get("n_valid") or 0
 
-    sc["histogram"] += _W["hist_base"]
+    if intent == "trend":
+        return "line"
 
-    if skew > _T["skew_high"]:
-        sc["histogram"] += _W["hist_skew"]
-        sc["box"]       += _W["box_skew"]
+    if intent == "ranking":
+        return "histogram"
 
-    if entropy > _T["entropy_numeric_high"]:
-        sc["histogram"] += _W["hist_entropy"]
+    if intent == "distribution":
+        if outlier_r > _T["outlier_high"]:
+            return "boxplot"
+        if n_valid >= _T["n_dense"] and skew < _T["skew_high"]:
+            return "density"
+        return "histogram"
 
-    if variance > _T["variance_high"] or cv > _T["cv_high"]:
-        sc["histogram"] += _W["hist_variance"]
-        sc["box"]       += _W["box_variance"]
+    if intent in ("comparison", "correlation"):
+        if outlier_r > _T["outlier_high"]:
+            return "boxplot"
+        return "histogram"
 
-    if outlier_r > _T["outlier_pct_high"]:
-        sc["box"] += _W["box_outliers"]
+    if intent == "composition":
+        return "histogram"
 
+    # auto fallback
     if monotonic:
-        sc["line"] += _W["line_monotonic"]
+        return "line"
+    if outlier_r > _T["outlier_high"]:
+        return "boxplot"
+    if n_valid >= _T["n_dense"]:
+        return "density"
+    return "histogram"
 
-    # many distinct numeric values → histogram beats bar
-    if n_valid > 20:
-        sc["histogram"] += _W["hist_many_vals"]
 
-    return sc
+# ── Categorical branch ────────────────────────────────────────
+#
+# From Data to Viz — CATEGORIC tree:
+#
+#  Composition (part of whole)
+#    ├─ few cats + balanced   → PIE
+#    ├─ few cats + unbalanced → DONUT
+#    └─ many cats             → TREEMAP
+#
+#  Ranking
+#    ├─ ≤ 6   → LOLLIPOP
+#    ├─ ≤ 12  → BAR
+#    └─ > 12  → TREEMAP
+#
+#  Distribution / Comparison
+#    ├─ ≤ 12  → BAR
+#    └─ > 12  → TREEMAP
 
+def _categorical_univar(s: dict, intent: str) -> str:
+    unique      = s.get("unique_count") or 0
+    balance     = s.get("balance_score") or 0
+    cardinality = s.get("cardinality_ratio") or 0
 
-def _univar_categorical(s: dict) -> dict:
-    sc = dict(histogram=0, box=0, bar=0, pie=0, line=0)
+    if intent == "composition":
+        if cardinality > 0.5 or unique > _T["cat_medium"]:
+            return "treemap"
+        if unique <= _T["cat_few"]:
+            return "pie" if balance >= _T["balance_min"] else "donut"
+        return "donut"
 
-    unique     = s.get("unique_count") or 0
-    entropy    = s.get("categorical_entropy") or 0
-    balance    = s.get("balance_score") or 0
-    cardinality= s.get("cardinality_ratio") or 0
+    if intent == "ranking":
+        if unique <= _T["cat_few"]:
+            return "lollipop"
+        if unique <= _T["cat_medium"]:
+            return "bar"
+        if unique <= _T["cat_many"]:
+            return "lollipop"
+        return "treemap"
 
-    sc["bar"] += _W["bar_base"]
+    if intent in ("distribution", "comparison"):
+        if unique <= _T["cat_medium"]:
+            return "bar"
+        return "treemap"
 
-    # pie: few categories
-    if unique <= _T["pie_max_unique"]:
-        sc["pie"] += _W["pie_small"]
+    if intent == "trend":
+        return "line"
 
-    # binary → pie is very effective
-    if unique == 2:
-        sc["pie"] += _W["pie_binary"]
-
-    # balanced distribution → pie works well
-    if balance > 0.6:
-        sc["pie"] += _W["pie_balance"]
-
-    # high cardinality → bar is safer, kill pie
-    if cardinality > 0.5 or unique > _T["bar_few_unique"]:
-        sc["pie"] += _W["pie_penalty_large"]
-        sc["bar"] += _W["bar_few_cats"]
-
-    if entropy > _T["entropy_cat_high"]:
-        sc["bar"] += _W["bar_entropy"]
-
-    return sc
+    # auto fallback
+    if unique <= _T["cat_few"]:
+        return "pie" if balance >= _T["balance_min"] else "bar"
+    if unique <= _T["cat_medium"]:
+        return "bar"
+    return "treemap"
 
 
 # ══════════════════════════════════════════════════════════════
-# BIVARIATE
+# BIVARIATE  — public entry point
 # ══════════════════════════════════════════════════════════════
 
 def choose_bivariate_chart(
@@ -170,84 +242,172 @@ def choose_bivariate_chart(
     type_y: str,
     stats_x: dict | None = None,
     stats_y: dict | None = None,
+    intent: str | None = None,
 ) -> str:
-    sc = dict(scatter=0, line=0, bar=0, stacked_bar=0, box=0)
-
     sx = stats_x or {}
     sy = stats_y or {}
 
-    # ── numeric × numeric ────────────────────────────────────
+    if intent is None:
+        intent = _infer_bivariate_intent(type_x, type_y, sx, sy)
+
+    # ── Date × Numeric ───────────────────────────────────────
+    # From Data to Viz — TIME SERIES: always line / area
+    if type_x == "date" or type_y == "date":
+        num_s = sy if type_x == "date" else sx
+        cv    = num_s.get("cv_pct") or 0
+        if cv > _T["cv_high"]:
+            return "area"
+        return "line"
+
+    # ── Numeric × Numeric ────────────────────────────────────
+    # From Data to Viz — NUMERIC × NUMERIC (RELATIONAL):
+    #   correlation  → SCATTER
+    #   trend        → LINE
     if type_x == "numeric" and type_y == "numeric":
-        sc["scatter"] += _W["scatter_base"]
+        return _num_num(sx, sy, intent)
 
-        if _high_entropy(sx) or _high_entropy(sy):
-            sc["scatter"] += _W["scatter_entropy"]
+    # ── Categorical × Numeric ────────────────────────────────
+    # From Data to Viz — CATEGORIC × NUMERIC:
+    #   ranking      → LOLLIPOP / BAR
+    #   composition  → STACKED BAR
+    #   distribution → VIOLIN (few groups) / BOXPLOT (many)
+    #   comparison   → GROUPED BAR / BOXPLOT
+    if type_x == "categorical" and type_y == "numeric":
+        return _cat_num(sx, sy, intent)
+    if type_y == "categorical" and type_x == "numeric":
+        return _cat_num(sy, sx, intent)
 
-        if _is_monotonic(sx) or _is_monotonic(sy):
-            sc["line"] += 2
+    # ── Categorical × Categorical ────────────────────────────
+    # From Data to Viz — CATEGORIC × CATEGORIC:
+    #   few × few    → STACKED BAR / GROUPED BAR
+    #   any large    → HEATMAP
+    if type_x == "categorical" and type_y == "categorical":
+        return _cat_cat(sx, sy, intent)
 
-        if _has_outliers(sx) or _has_outliers(sy):
-            sc["box"] += 1
-
-    # ── date × numeric ───────────────────────────────────────
-    elif (type_x == "date" and type_y == "numeric") or \
-         (type_y == "date" and type_x == "numeric"):
-        sc["line"] += _W["line_time"]
-
-    # ── categorical × numeric ────────────────────────────────
-    elif type_x == "categorical" and type_y == "numeric":
-        _add(sc, _cat_num_scores(sx, sy))
-
-    elif type_y == "categorical" and type_x == "numeric":
-        _add(sc, _cat_num_scores(sy, sx))
-
-    # ── categorical × categorical ────────────────────────────
-    elif type_x == "categorical" and type_y == "categorical":
-        sc["stacked_bar"] += _W["stacked_base"]
-        # if both have few categories prefer grouped bar
-        ux = sx.get("unique_count") or 999
-        uy = sy.get("unique_count") or 999
-        if ux <= 6 and uy <= 6:
-            sc["bar"] += 2
-
-    best = max(sc, key=sc.get)
-    return best if sc[best] > 0 else "table"
+    return "table"
 
 
-def _cat_num_scores(cat_s: dict, num_s: dict) -> dict:
-    sc = dict(scatter=0, line=0, bar=0, stacked_bar=0, box=0)
-    unique = cat_s.get("unique_count") or 0
+# ── Numeric × Numeric ─────────────────────────────────────────
+def _num_num(sx: dict, sy: dict, intent: str) -> str:
+    mono = _is_monotonic(sx) or _is_monotonic(sy)
 
-    if unique <= _T["cat_many_unique"]:
-        sc["bar"] += _W["grouped_bar_few"]
-    else:
-        sc["box"] += _W["grouped_box_many"]
+    if intent == "trend":
+        return "line"
+    if intent == "correlation":
+        return "scatter"
+    if intent == "distribution":
+        return "scatter"
+    if intent in ("comparison", "ranking"):
+        return "scatter"
+    if intent == "composition":
+        return "scatter"
 
-    if (num_s.get("variance_score") or 0) > _T["variance_high"]:
-        sc["box"] += _W["grouped_box_var"]
+    # auto
+    if mono:
+        return "line"
+    return "scatter"
 
-    if _has_outliers(num_s):
-        sc["box"] += 1
 
-    return sc
+# ── Categorical × Numeric ─────────────────────────────────────
+def _cat_num(cat_s: dict, num_s: dict, intent: str) -> str:
+    unique       = cat_s.get("unique_count") or 0
+    has_outliers = _has_outliers(num_s)
+    high_var     = (num_s.get("cv_pct") or 0) > _T["cv_high"]
+
+    if intent == "ranking":
+        if unique <= _T["cat_medium"]:
+            return "lollipop"
+        return "bar"
+
+    if intent == "composition":
+        if unique <= _T["cat_few"]:
+            return "stacked_bar"
+        return "grouped_bar"
+
+    if intent == "distribution":
+        # From Data to Viz: few groups → violin; many → ridgeline / box
+        if unique <= _T["groups_few"]:
+            return "violin"
+        if unique <= _T["groups_many"]:
+            return "boxplot"
+        return "heatmap"
+
+    if intent == "comparison":
+        if unique <= _T["cat_medium"]:
+            if has_outliers or high_var:
+                return "boxplot"
+            return "grouped_bar"
+        return "boxplot"
+
+    if intent == "trend":
+        return "line"
+
+    # auto
+    if unique <= _T["cat_medium"]:
+        return "boxplot" if (has_outliers or high_var) else "grouped_bar"
+    return "boxplot"
+
+
+# ── Categorical × Categorical ─────────────────────────────────
+def _cat_cat(sx: dict, sy: dict, intent: str) -> str:
+    ux = sx.get("unique_count") or 999
+    uy = sy.get("unique_count") or 999
+
+    if intent == "composition":
+        if ux <= _T["cat_few"] and uy <= _T["cat_few"]:
+            return "stacked_bar"
+        return "heatmap"
+
+    if intent in ("comparison", "distribution"):
+        if ux <= _T["cat_medium"] and uy <= _T["cat_medium"]:
+            return "grouped_bar"
+        return "heatmap"
+
+    if intent == "ranking":
+        return "grouped_bar" if ux <= _T["cat_medium"] else "heatmap"
+
+    # auto
+    if ux <= _T["cat_medium"] and uy <= _T["cat_medium"]:
+        return "stacked_bar"
+    return "heatmap"
+
+
+# ══════════════════════════════════════════════════════════════
+# ALTERNATIVES  (for frontend "also try" suggestions)
+# ══════════════════════════════════════════════════════════════
+
+ALTERNATIVES: dict[str, list[str]] = {
+    "histogram":   ["density", "boxplot", "violin"],
+    "density":     ["histogram", "violin", "ridgeline"],
+    "boxplot":     ["violin", "histogram", "scatter"],
+    "violin":      ["boxplot", "ridgeline", "density"],
+    "ridgeline":   ["violin", "density"],
+    "bar":         ["lollipop", "treemap"],
+    "lollipop":    ["bar", "treemap"],
+    "pie":         ["donut", "bar", "treemap"],
+    "donut":       ["pie", "bar", "treemap"],
+    "treemap":     ["bar", "lollipop"],
+    "grouped_bar": ["boxplot", "violin", "lollipop"],
+    "stacked_bar": ["grouped_bar", "area"],
+    "scatter":     ["line", "bubble", "heatmap"],
+    "line":        ["area", "scatter"],
+    "area":        ["line", "stacked_bar"],
+    "heatmap":     ["grouped_bar", "scatter"],
+    "bubble":      ["scatter"],
+}
+
+
+def get_alternatives(chart_type: str) -> list[str]:
+    return ALTERNATIVES.get(chart_type, [])
 
 
 # ══════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════
 
-def _add(base: dict, delta: dict):
-    for k, v in delta.items():
-        base[k] = base.get(k, 0) + v
-
-
 def _is_monotonic(s: dict) -> bool:
     return bool(s.get("monotonic", False))
 
 
 def _has_outliers(s: dict) -> bool:
-    return (s.get("outlier_ratio") or 0) > _T["outlier_pct_high"]
-
-
-def _high_entropy(s: dict) -> bool:
-    return (s.get("numeric_entropy") or 0) > _T["entropy_numeric_high"]
+    return (s.get("outlier_ratio") or 0) > _T["outlier_high"]
