@@ -188,6 +188,17 @@ def _numeric_stats(series: pd.Series, base: dict) -> dict:
     # ── variance score (CV² normalised) ──────────────────────
     variance_score = float((std / abs(mean)) ** 2) if mean != 0 else float("inf")
 
+    # ── discrete numeric detection ───────────────────────────
+    # A numeric column is "discrete" when all values are integers
+    # AND unique values are few — e.g. age (13-80), rating (1-5).
+    all_integers  = bool(np.all(arr == np.floor(arr)))
+    n_unique_vals = int(pd.Series(arr).nunique())
+    # discrete: all integers AND (≤ 100 unique  OR  unique < 10% of n)
+    # This catches: age (13-80), score (0-100), ratings, ordinals
+    is_discrete   = all_integers and (
+        n_unique_vals <= 100 or (n_unique_vals / n) < 0.10
+    )
+
     # ── zero / negative flags ────────────────────────────────
     zero_count  = int((arr == 0).sum())
     neg_count   = int((arr < 0).sum())
@@ -233,6 +244,8 @@ def _numeric_stats(series: pd.Series, base: dict) -> dict:
         "zero_count":     zero_count,
         "negative_count": neg_count,
         "n_valid":        n,
+        "n_unique_vals":  n_unique_vals,
+        "is_discrete":    is_discrete,
     }
 
 

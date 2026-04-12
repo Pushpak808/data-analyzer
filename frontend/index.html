@@ -750,8 +750,19 @@ function buildChartJSCard(chart) {
   const canvas = card.querySelector("canvas");
 
   const baseScales = {
-    x: { ticks: { color: "#6b7280", font: { size: 10 }, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.04)" } },
-    y: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+    x: {
+      ticks: {
+        color: "#6b7280", font: { size: 10 }, maxRotation: 35,
+        maxTicksLimit: 10,
+        callback: function(val, idx) {
+          const lbl = this.getLabelForValue(val);
+          // Truncate long labels
+          return typeof lbl === "string" && lbl.length > 12 ? lbl.substring(0, 11) + "…" : lbl;
+        }
+      },
+      grid: { color: "rgba(255,255,255,0.04)" }
+    },
+    y: { ticks: { color: "#6b7280", font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.04)" } }
   };
 
   // SCATTER
@@ -823,10 +834,12 @@ function buildDensityCard(chart) {
   const card = makeCard(chart.title, chart.priority, chart.recommended);
   const canvas = card.querySelector("canvas");
   const values = (chart.values || []).map(v => v === null ? null : +v);
+  // labels are already rounded numbers from backend
+  const labels = chart.labels || [];
   chartInstances.push(new Chart(canvas, {
     type: "line",
     data: {
-      labels: chart.labels || [],
+      labels,
       datasets: [{
         data: values,
         borderColor: "#a78bfa",
@@ -839,8 +852,17 @@ function buildDensityCard(chart) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.03)" } },
-        y: { ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+        x: {
+          ticks: {
+            color: "#6b7280", font: { size: 9 }, maxTicksLimit: 8, maxRotation: 0,
+            callback: (val, idx) => {
+              const v = labels[idx];
+              return typeof v === "number" ? (Number.isInteger(v) ? v : +v.toFixed(2)) : v;
+            }
+          },
+          grid: { color: "rgba(255,255,255,0.03)" }
+        },
+        y: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 5 }, grid: { color: "rgba(255,255,255,0.03)" } }
       }
     }
   }));
@@ -877,47 +899,91 @@ function buildAreaCard(chart) {
 }
 
 // ── Lollipop ──────────────────────────────────────
+// Drawn on raw canvas: stems (lines) + circles on top.
+// Chart.js can't do this cleanly in one pass.
 function buildLollipopCard(chart) {
   const card   = makeCard(chart.title, chart.priority, chart.recommended);
   const body   = card.querySelector(".chart-body");
-  const canvas = body.querySelector("canvas");
+  body.innerHTML = "";   // remove default canvas
+
   const labels = chart.labels || [];
   const values = chart.values || [];
-
   if (!labels.length) return card;
 
-  const maxVal = Math.max(...values.filter(v => v != null));
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = "width:100%;height:100%;display:block;";
+  body.appendChild(canvas);
 
-  chartInstances.push(new Chart(canvas, {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          type: "bar",
-          data: values,
-          backgroundColor: "transparent",
-          borderColor: "transparent",
-          barThickness: 2,
-        },
-        {
-          type: "scatter",
-          data: values.map((v, i) => ({ x: i, y: v })),
-          backgroundColor: PALETTE.slice(0, values.length).map((c, i) => PALETTE[i % PALETTE.length]),
-          pointRadius: 7,
-          pointHoverRadius: 9,
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.04)" } },
-        y: { beginAtZero: true, ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.04)" } }
-      }
+  // Let it size to body then draw
+  requestAnimationFrame(() => {
+    const W   = canvas.offsetWidth  || 340;
+    const H   = canvas.offsetHeight || 220;
+    canvas.width  = W * window.devicePixelRatio;
+    canvas.height = H * window.devicePixelRatio;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    const padL = 48, padR = 16, padT = 16, padB = 44;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    const validVals = values.filter(v => v != null);
+    const maxVal = Math.max(...validVals);
+    const minVal = Math.min(0, Math.min(...validVals));
+    const span   = maxVal - minVal || 1;
+
+    const n     = labels.length;
+    const step  = plotW / n;
+    const dotR  = Math.max(4, Math.min(8, step * 0.3));
+
+    // Y scale
+    const yScale = v => padT + plotH - ((v - minVal) / span) * plotH;
+
+    // Baseline
+    const baseY = yScale(0);
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(padL, baseY); ctx.lineTo(padL + plotW, baseY); ctx.stroke();
+
+    // Y axis ticks
+    ctx.fillStyle   = "rgba(107,114,128,0.9)";
+    ctx.font        = `${Math.min(10, 9)}px 'JetBrains Mono', monospace`;
+    ctx.textAlign   = "right";
+    const yTicks = 4;
+    for (let t = 0; t <= yTicks; t++) {
+      const v    = minVal + (span * t / yTicks);
+      const yPx  = yScale(v);
+      ctx.fillText(v >= 1000 ? (v/1000).toFixed(1)+"K" : Math.round(v), padL - 5, yPx + 3.5);
+      ctx.strokeStyle = "rgba(255,255,255,0.04)";
+      ctx.beginPath(); ctx.moveTo(padL, yPx); ctx.lineTo(padL + plotW, yPx); ctx.stroke();
     }
-  }));
+
+    values.forEach((v, i) => {
+      if (v == null) return;
+      const x   = padL + (i + 0.5) * step;
+      const yV  = yScale(v);
+      const col = PALETTE[i % PALETTE.length];
+
+      // Stem
+      ctx.strokeStyle = col + "66";
+      ctx.lineWidth   = 2;
+      ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x, yV); ctx.stroke();
+
+      // Circle
+      ctx.fillStyle   = col;
+      ctx.strokeStyle = "#0a0b0f";
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath(); ctx.arc(x, yV, dotR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+      // X label
+      ctx.fillStyle   = "rgba(107,114,128,0.9)";
+      ctx.font        = "9px 'JetBrains Mono', monospace";
+      ctx.textAlign   = "center";
+      const lbl = String(labels[i]).substring(0, 10);
+      ctx.fillText(lbl, x, H - padB + 14);
+    });
+  });
+
   return card;
 }
 

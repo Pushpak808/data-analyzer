@@ -23,6 +23,7 @@ from analyzer.importance import score_columns
 from analyzer.insights import generate_insights
 from analyzer.parser   import parse_file
 from analyzer.stats    import compute_stats
+from analyzer.json_utils import to_native
 
 
 # ══════════════════════════════════════════════════════════════
@@ -107,39 +108,41 @@ async def upload_file(file: UploadFile = File(...)):
     total_cells   = len(df) * len(df.columns)
     overall_missing_pct = round(total_missing / total_cells * 100, 2) if total_cells else 0
 
-    return {
+    return to_native({
         # metadata
-        "filename":      file.filename,
-        "rows":          len(df),
-        "columns":       list(df.columns),
+        "filename": file.filename,
+        "rows": len(df),
+        "columns": list(df.columns),
 
         # column type breakdown
         "type_counts": {
-            "numeric":     n_numeric,
+            "numeric": n_numeric,
             "categorical": n_categorical,
-            "date":        n_date,
-            "text":        n_text,
+            "date": n_date,
+            "text": n_text,
         },
 
         # quality summary
         "quality": {
             "total_missing_cells": total_missing,
             "overall_missing_pct": overall_missing_pct,
-            "complete_columns":    sum(1 for s in stats.values() if s.get("missing", 0) == 0),
+            "complete_columns": sum(
+                1 for s in stats.values() if s.get("missing", 0) == 0
+            ),
         },
 
         # core analysis
-        "stats":             stats,
+        "stats": stats,
         "column_importance": importance,
-        "charts":            charts,
+        "charts": charts,
 
         # intelligence layer
-        "insights":  insights,
-        "features":  features,
+        "insights": insights,
+        "features": features,
 
         # preview
-        "preview":   preview,
-    }
+        "preview": preview,
+    })
 
 
 # ══════════════════════════════════════════════════════════════
