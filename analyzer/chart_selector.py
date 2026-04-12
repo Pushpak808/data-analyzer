@@ -42,9 +42,6 @@ _T = {
     "outlier_high":        5.0,    # % rows outside IQR fence
     "cv_high":             50.0,   # coefficient of variation %
 
-    # density eligibility
-    "n_dense":             300,    # min rows for density plot
-    "unique_dense":        20,     # min unique values for density
 
     # bivariate gates  — skip pair if below these
     "corr_min":            0.15,   # |Pearson r| minimum to show scatter/line
@@ -142,7 +139,6 @@ def _numeric_univar(s: dict, intent: str) -> str:
     discrete   = _is_discrete(s)
     n_uniq     = s.get("n_unique_vals") or 999
 
-    # Discrete integers always get histogram (bar per value) — never density
     if discrete:
         return "boxplot" if outlier_r > _T["outlier_high"] else "histogram"
 
@@ -156,9 +152,6 @@ def _numeric_univar(s: dict, intent: str) -> str:
         # Heavy outliers → boxplot surfaces them better
         if outlier_r > _T["outlier_high"]:
             return "boxplot"
-        # Large continuous dataset with low skew → smooth density curve
-        if n >= _T["n_dense"] and skew < _T["skew_high"] and n_uniq >= _T["unique_dense"]:
-            return "density"
         return "histogram"
 
     if intent in ("comparison", "correlation"):
@@ -169,8 +162,6 @@ def _numeric_univar(s: dict, intent: str) -> str:
         return "line"
     if outlier_r > _T["outlier_high"]:
         return "boxplot"
-    if n >= _T["n_dense"] and n_uniq >= _T["unique_dense"]:
-        return "density"
     return "histogram"
 
 
@@ -446,10 +437,9 @@ def _discrete_as_cat(s: dict) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 ALTERNATIVES: dict[str, list[str]] = {
-    "histogram":   ["boxplot", "density"],
-    "density":     ["histogram", "boxplot"],
+    "histogram":   ["boxplot"],
     "boxplot":     ["violin", "histogram"],
-    "violin":      ["boxplot", "density"],
+    "violin":      ["boxplot"],
     "bar":         ["lollipop", "treemap"],
     "lollipop":    ["bar"],
     "pie":         ["donut", "bar"],

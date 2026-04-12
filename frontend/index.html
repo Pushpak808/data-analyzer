@@ -439,6 +439,160 @@
   }
   .features-intro strong { color: var(--text); }
 
+  /* TOPBAR ACTIONS */
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .action-btn {
+    padding: 7px 14px; border-radius: 8px; font-size: .78rem; font-weight: 600;
+    border: 1px solid var(--border2); background: var(--surface2); color: var(--text);
+    cursor: pointer; transition: all .18s; display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-display);
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn-export { border-color: rgba(52,211,153,0.3); color: var(--green); }
+  .action-btn-export:hover { background: rgba(52,211,153,0.1); }
+
+  /* AI SUMMARY CARD */
+  .ai-summary-card {
+    background: linear-gradient(135deg, rgba(79,140,255,0.06), rgba(167,139,250,0.06));
+    border: 1px solid rgba(79,140,255,0.2); border-radius: var(--radius-lg);
+    padding: 20px 24px; margin-bottom: 24px; animation: fadeIn .4s ease;
+  }
+  .ai-summary-header { margin-bottom: 12px; }
+  .ai-badge {
+    font-size: .68rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+    background: linear-gradient(90deg,rgba(79,140,255,0.2),rgba(167,139,250,0.2));
+    border: 1px solid rgba(167,139,250,0.3); color: #c4b5fd;
+    text-transform: uppercase; letter-spacing: .08em;
+    display: inline-block; margin-bottom: 10px;
+  }
+  .ai-summary-headline {
+    font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text);
+    line-height: 1.4;
+  }
+  .ai-summary-body { font-size: .87rem; line-height: 1.65; color: #b0b8cc; margin-bottom: 16px; }
+  .ai-summary-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ai-finding-item, .ai-watchout-item {
+    display: flex; gap: 8px; align-items: flex-start;
+    font-size: .8rem; line-height: 1.4;
+  }
+  .ai-finding-icon { color: var(--green); flex-shrink: 0; }
+  .ai-watchout-icon { color: var(--amber); flex-shrink: 0; }
+  .ai-summary-skeleton { margin-bottom: 24px; }
+  .skeleton-line {
+    height: 14px; border-radius: 6px; background: var(--surface2);
+    margin-bottom: 10px; animation: pulse 1.5s ease-in-out infinite;
+  }
+  .w80 { width: 80%; } .w60 { width: 60%; } .w90 { width: 90%; }
+  @keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+  /* NL QUERY MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius-lg); padding: 28px;
+    width: 580px; max-width: 92vw; max-height: 80vh;
+    display: flex; flex-direction: column; gap: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn { from { opacity:0; transform: scale(.97) translateY(8px); } to { opacity:1; transform:none; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; }
+  .modal-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; }
+  .modal-close {
+    background: none; border: none; color: var(--muted); font-size: 1rem;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all .15s;
+  }
+  .modal-close:hover { background: var(--surface2); color: var(--text); }
+  .query-examples { display: flex; gap: 8px; flex-wrap: wrap; }
+  .query-chip {
+    font-size: .74rem; padding: 5px 12px; border-radius: 20px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--muted); cursor: pointer; transition: all .15s;
+  }
+  .query-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .query-input-row { display: flex; gap: 10px; }
+  .query-input {
+    flex: 1; padding: 10px 14px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--font-body); font-size: .88rem;
+    outline: none; transition: border-color .2s;
+  }
+  .query-input:focus { border-color: var(--accent); }
+  .query-send-btn {
+    padding: 10px 20px; border-radius: 10px; background: var(--accent);
+    border: none; color: #fff; font-family: var(--font-display);
+    font-size: .84rem; font-weight: 700; cursor: pointer; transition: opacity .18s;
+  }
+  .query-send-btn:hover { opacity: .85; }
+  .query-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .query-loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; }
+  .query-history { overflow-y: auto; max-height: 320px; display: flex; flex-direction: column; gap: 16px; }
+  .qh-item { display: flex; flex-direction: column; gap: 6px; }
+  .qh-question {
+    font-size: .8rem; color: var(--muted); padding: 8px 12px;
+    background: var(--surface2); border-radius: 8px; border-left: 2px solid var(--accent);
+  }
+  .qh-answer {
+    font-size: .85rem; line-height: 1.6; color: var(--text);
+    padding: 12px 14px; background: rgba(79,140,255,0.06);
+    border: 1px solid rgba(79,140,255,0.15); border-radius: 10px;
+  }
+
+  /* CHART EXPLORER */
+  .explorer-intro {
+    display: flex; gap: 14px; align-items: center; margin-bottom: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+  }
+  .explorer-icon { font-size: 1.6rem; }
+  .explorer-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; }
+  .explorer-sub { font-size: .82rem; color: var(--muted); margin-top: 3px; }
+  .explorer-controls {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 24px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .explorer-selects { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .select-wrap { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+  .select-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 500; }
+  .col-select {
+    padding: 9px 12px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--font-body); font-size: .85rem;
+    outline: none; cursor: pointer;
+  }
+  .col-select:focus { border-color: var(--accent); }
+  .explorer-vs {
+    font-family: var(--font-display); font-size: .9rem; font-weight: 700;
+    color: var(--muted); padding-bottom: 10px; flex-shrink: 0;
+  }
+  .chart-type-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chart-type-btn {
+    padding: 6px 14px; border-radius: 8px; font-size: .78rem; font-weight: 600;
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    cursor: pointer; transition: all .15s; font-family: var(--font-display);
+  }
+  .chart-type-btn:hover { border-color: var(--border2); color: var(--text); }
+  .chart-type-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #explorer-result { min-height: 280px; }
+  .explorer-chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    max-width: 640px;
+  }
+  .explorer-chart-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .explorer-chart-title { font-family: var(--font-display); font-size: .9rem; font-weight: 700; }
+  .explorer-chart-body { padding: 14px; height: 280px; }
+  .explorer-loading { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .85rem; padding: 40px; }
+  .explorer-empty { color: var(--muted); font-size: .85rem; padding: 48px; text-align: center; }
+
   /* scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -507,13 +661,39 @@
         <div class="tab active" onclick="switchTab('overview')">Overview</div>
         <div class="tab" onclick="switchTab('insights')">Insights <span id="insights-badge" class="tab-badge"></span></div>
         <div class="tab" onclick="switchTab('charts')">Charts</div>
+        <div class="tab" onclick="switchTab('explorer')">Explorer</div>
         <div class="tab" onclick="switchTab('stats')">Statistics</div>
         <div class="tab" onclick="switchTab('features')">Features</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="action-btn" onclick="openQueryModal()" title="Ask AI a question">
+          <span>✦</span> Ask AI
+        </button>
+        <button class="action-btn action-btn-export" onclick="exportPDF()" title="Export PDF report">
+          <span>↓</span> Export PDF
+        </button>
       </div>
     </div>
 
     <!-- OVERVIEW PANEL -->
     <div class="panel active" id="overview-panel">
+      <!-- AI Summary Card -->
+      <div id="ai-summary-card" class="ai-summary-card" style="display:none">
+        <div class="ai-summary-header">
+          <span class="ai-badge">✦ AI Summary</span>
+          <div class="ai-summary-headline" id="ai-headline"></div>
+        </div>
+        <div class="ai-summary-body" id="ai-summary-body"></div>
+        <div class="ai-summary-footer">
+          <div id="ai-findings"></div>
+          <div id="ai-watchouts"></div>
+        </div>
+      </div>
+      <div id="ai-summary-loading" style="display:none" class="ai-summary-skeleton">
+        <div class="skeleton-line w80"></div>
+        <div class="skeleton-line w60"></div>
+        <div class="skeleton-line w90"></div>
+      </div>
       <div class="overview-grid" id="overview-grid"></div>
       <div class="section-title">Data Preview</div>
       <div class="table-wrap">
@@ -529,6 +709,34 @@
     <!-- FEATURES PANEL -->
     <div class="panel" id="features-panel">
       <div id="features-list"></div>
+    </div>
+
+    <!-- CHART EXPLORER PANEL -->
+    <div class="panel" id="explorer-panel">
+      <div class="explorer-intro">
+        <span class="explorer-icon">🔍</span>
+        <div>
+          <div class="explorer-title">Chart Explorer</div>
+          <div class="explorer-sub">Choose any two columns and pick how you want to visualize them</div>
+        </div>
+      </div>
+      <div class="explorer-controls">
+        <div class="explorer-selects">
+          <div class="select-wrap">
+            <label class="select-label">Column X</label>
+            <select id="exp-col-x" class="col-select" onchange="updateExplorerChart()"></select>
+          </div>
+          <div class="explorer-vs">vs</div>
+          <div class="select-wrap">
+            <label class="select-label">Column Y <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <select id="exp-col-y" class="col-select" onchange="updateExplorerChart()">
+              <option value="">— None (univariate) —</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-type-picker" id="chart-type-picker"></div>
+      </div>
+      <div id="explorer-result"></div>
     </div>
 
     <!-- CHARTS PANEL -->
@@ -553,11 +761,59 @@
   </div>
 </div>
 
+<!-- ═══════════════════ NL QUERY MODAL ═══════════════════ -->
+<div id="query-modal" class="modal-overlay" style="display:none" onclick="closeQueryModal(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">✦ Ask your data anything</div>
+      <button class="modal-close" onclick="closeQueryModal()">✕</button>
+    </div>
+    <div class="query-examples">
+      <span class="query-chip" onclick="setQuery(this)">Which column is most important?</span>
+      <span class="query-chip" onclick="setQuery(this)">Are there any strong correlations?</span>
+      <span class="query-chip" onclick="setQuery(this)">What are the main data quality issues?</span>
+      <span class="query-chip" onclick="setQuery(this)">Summarise the distribution of age</span>
+    </div>
+    <div class="query-input-row">
+      <input id="query-input" class="query-input" placeholder="e.g. Which columns have the most outliers?"
+             onkeydown="if(event.key==='Enter') sendQuery()"/>
+      <button class="query-send-btn" onclick="sendQuery()" id="query-send-btn">Ask</button>
+    </div>
+    <div id="query-loading" class="query-loading" style="display:none">
+      <div class="spinner" style="width:28px;height:28px;border-width:2px"></div>
+      <span>Thinking…</span>
+    </div>
+    <div id="query-history" class="query-history"></div>
+  </div>
+</div>
+
 <script>
 const PALETTE = ["#4f8cff","#a78bfa","#34d399","#fbbf24","#f87171","#38bdf8","#fb923c","#e879f9"];
 let G = {};
 let chartInstances = [];
-let allChartCards = [];
+let allChartCards  = [];
+let explorerInstance = null;
+let queryHistory   = [];
+
+// Chart types available in explorer per combination
+const CHART_TYPES = {
+  "numeric":            ["histogram","density","boxplot","violin","line"],
+  "categorical":        ["bar","lollipop","pie","donut","treemap"],
+  "date":               ["line"],
+  "numeric+numeric":    ["scatter","line"],
+  "categorical+numeric":["grouped_bar","lollipop","boxplot","violin"],
+  "numeric+categorical":["grouped_bar","lollipop","boxplot","violin"],
+  "categorical+categorical":["stacked_bar","grouped_bar","heatmap"],
+  "date+numeric":       ["line","area"],
+  "numeric+date":       ["line","area"],
+};
+
+const CHART_TYPE_LABELS = {
+  histogram:"Histogram", density:"Density", boxplot:"Box Plot", violin:"Violin",
+  line:"Line", bar:"Bar", lollipop:"Lollipop", pie:"Pie", donut:"Donut",
+  treemap:"Treemap", scatter:"Scatter", grouped_bar:"Grouped Bar",
+  stacked_bar:"Stacked Bar", heatmap:"Heatmap", area:"Area",
+};
 
 // ── Upload / Drag & Drop ──────────────────────────
 const dz = document.getElementById("drop-zone");
@@ -598,7 +854,9 @@ async function upload(file) {
 function resetToUpload() {
   chartInstances.forEach(c => c.destroy());
   chartInstances = [];
-  allChartCards = [];
+  allChartCards  = [];
+  if (explorerInstance) { try { explorerInstance.destroy(); } catch(e){} explorerInstance = null; }
+  queryHistory = [];
   G = {};
   switchTab('overview');
   show("upload");
@@ -606,7 +864,7 @@ function resetToUpload() {
 
 // ── Tabs ─────────────────────────────────────────
 function switchTab(name) {
-  const names = ["overview","insights","charts","stats","features"];
+  const names = ["overview","insights","explorer","charts","stats","features"];
   document.querySelectorAll(".tab").forEach((t, i) => {
     t.classList.toggle("active", names[i] === name);
   });
@@ -621,11 +879,14 @@ function buildDashboard() {
   document.getElementById("sb-cols").textContent = (G.columns || []).length;
   document.getElementById("topbar-title").textContent = G.filename || "Analysis";
 
-  const steps = [buildSidebar, buildOverview, buildInsights, buildFeatures, buildCharts, buildStats];
+  const steps = [buildSidebar, buildOverview, buildInsights, buildFeatures, buildCharts, buildStats, buildExplorer];
   steps.forEach(fn => {
     try { fn(); }
     catch(e) { console.error(`[DataSage] ${fn.name} failed:`, e); }
   });
+
+  // Trigger AI summary in background
+  if (G.session_key) fetchAISummary();
 }
 
 // ── Sidebar columns ───────────────────────────────
@@ -1480,6 +1741,423 @@ function buildFeatures() {
   });
 
   el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// FEATURE 1 — AI SUMMARY
+// ══════════════════════════════════════════════════════════════
+async function fetchAISummary() {
+  document.getElementById("ai-summary-loading").style.display = "block";
+  document.getElementById("ai-summary-card").style.display    = "none";
+  try {
+    const res = await fetch("/summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_key: G.session_key, filename: G.filename }),
+    });
+    if (!res.ok) throw new Error("Summary failed");
+    const d = await res.json();
+
+    document.getElementById("ai-headline").textContent = d.headline || "";
+    document.getElementById("ai-summary-body").textContent = d.summary || "";
+
+    const findings = document.getElementById("ai-findings");
+    findings.innerHTML = (d.key_findings || []).map(f =>
+      `<div class="ai-finding-item"><span class="ai-finding-icon">✓</span><span>${f}</span></div>`
+    ).join("");
+
+    const watchouts = document.getElementById("ai-watchouts");
+    watchouts.innerHTML = (d.watchouts || []).map(w =>
+      `<div class="ai-watchout-item"><span class="ai-watchout-icon">⚠</span><span>${w}</span></div>`
+    ).join("");
+
+    document.getElementById("ai-summary-loading").style.display = "none";
+    document.getElementById("ai-summary-card").style.display    = "block";
+  } catch(e) {
+    document.getElementById("ai-summary-loading").style.display = "none";
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FEATURE 2 — NATURAL LANGUAGE QUERY
+// ══════════════════════════════════════════════════════════════
+function openQueryModal() {
+  document.getElementById("query-modal").style.display = "flex";
+  setTimeout(() => document.getElementById("query-input").focus(), 100);
+}
+
+function closeQueryModal(e) {
+  if (!e || e.target === document.getElementById("query-modal")) {
+    document.getElementById("query-modal").style.display = "none";
+  }
+}
+
+function setQuery(el) {
+  document.getElementById("query-input").value = el.textContent;
+  document.getElementById("query-input").focus();
+}
+
+async function sendQuery() {
+  const input = document.getElementById("query-input");
+  const q     = input.value.trim();
+  if (!q) return;
+
+  const btn = document.getElementById("query-send-btn");
+  btn.disabled = true;
+  document.getElementById("query-loading").style.display = "flex";
+
+  try {
+    const res = await fetch("/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_key: G.session_key, question: q }),
+    });
+    const d = await res.json();
+    const answer = res.ok ? d.answer : (d.detail || "Error getting answer.");
+
+    // Add to history
+    queryHistory.unshift({ q, answer });
+    renderQueryHistory();
+    input.value = "";
+  } catch(e) {
+    queryHistory.unshift({ q, answer: "Network error. Please try again." });
+    renderQueryHistory();
+  }
+
+  btn.disabled = false;
+  document.getElementById("query-loading").style.display = "none";
+}
+
+function renderQueryHistory() {
+  const el = document.getElementById("query-history");
+  el.innerHTML = queryHistory.map(({ q, answer }) => `
+    <div class="qh-item">
+      <div class="qh-question">${q}</div>
+      <div class="qh-answer">${answer}</div>
+    </div>`).join("");
+}
+
+// ══════════════════════════════════════════════════════════════
+// FEATURE 3 — CHART EXPLORER
+// ══════════════════════════════════════════════════════════════
+let selectedChartType = null;
+
+function buildExplorer() {
+  const xSel = document.getElementById("exp-col-x");
+  const ySel = document.getElementById("exp-col-y");
+
+  xSel.innerHTML = G.columns.map(c =>
+    `<option value="${c}">${c} [${G.stats[c].type}]</option>`
+  ).join("");
+
+  ySel.innerHTML = `<option value="">— None (univariate) —</option>` +
+    G.columns.map(c =>
+      `<option value="${c}">${c} [${G.stats[c].type}]</option>`
+    ).join("");
+
+  updateChartTypePicker();
+}
+
+function updateExplorerChart() {
+  selectedChartType = null;
+  updateChartTypePicker();
+  document.getElementById("explorer-result").innerHTML =
+    `<div class="explorer-empty">Select a chart type above to visualize</div>`;
+}
+
+function updateChartTypePicker() {
+  const cx = document.getElementById("exp-col-x").value;
+  const cy = document.getElementById("exp-col-y").value;
+  if (!cx) return;
+
+  const tx = G.stats[cx]?.type || "numeric";
+  const ty = cy ? G.stats[cy]?.type : null;
+
+  let key = tx;
+  if (ty) key = `${tx}+${ty}`;
+
+  const types = CHART_TYPES[key] || CHART_TYPES[`${ty}+${tx}`] || ["bar"];
+
+  const picker = document.getElementById("chart-type-picker");
+  picker.innerHTML = types.map(t =>
+    `<button class="chart-type-btn ${t === selectedChartType ? 'selected' : ''}"
+             onclick="selectChartType('${t}')">${CHART_TYPE_LABELS[t] || t}</button>`
+  ).join("");
+}
+
+function selectChartType(type) {
+  selectedChartType = type;
+  document.querySelectorAll(".chart-type-btn").forEach(b => {
+    b.classList.toggle("selected", b.textContent.trim() === (CHART_TYPE_LABELS[type] || type));
+  });
+  renderExplorerChart();
+}
+
+async function renderExplorerChart() {
+  if (!selectedChartType) return;
+  const cx = document.getElementById("exp-col-x").value;
+  const cy = document.getElementById("exp-col-y").value || null;
+  const result = document.getElementById("explorer-result");
+
+  result.innerHTML = `<div class="explorer-loading"><div class="spinner" style="width:24px;height:24px;border-width:2px"></div> Building chart…</div>`;
+
+  try {
+    const res = await fetch("/chart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_key: G.session_key,
+        col_x: cx, col_y: cy,
+        chart_type: selectedChartType,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      result.innerHTML = `<div class="explorer-empty" style="color:var(--red)">⚠ ${err.detail || "Could not generate chart"}</div>`;
+      return;
+    }
+    const chart = await res.json();
+    renderExplorerChartData(chart, result);
+  } catch(e) {
+    result.innerHTML = `<div class="explorer-empty" style="color:var(--red)">⚠ Network error</div>`;
+  }
+}
+
+function renderExplorerChartData(chart, container) {
+  if (explorerInstance) { try { explorerInstance.destroy(); } catch(e){} explorerInstance = null; }
+
+  const card = document.createElement("div");
+  card.className = "explorer-chart-card";
+  card.innerHTML = `
+    <div class="explorer-chart-header">
+      <div class="explorer-chart-title">${chart.title || "Chart"}</div>
+      <span class="priority-badge rec-badge">Custom</span>
+    </div>
+    <div class="explorer-chart-body" id="explorer-canvas-wrap"></div>`;
+  container.innerHTML = "";
+  container.appendChild(card);
+
+  const wrap = document.getElementById("explorer-canvas-wrap");
+
+  // Special renderers
+  if (chart.type === "boxplot") {
+    const tmp = document.createElement("div");
+    tmp.style.height = "100%";
+    wrap.appendChild(tmp);
+    const fakeCard = { querySelector: () => ({ querySelector: () => null, innerHTML: "" }), ...card };
+    const boxCard  = buildBoxCard(chart);
+    wrap.innerHTML  = "";
+    wrap.appendChild(boxCard.querySelector(".chart-body").cloneNode(true));
+    return;
+  }
+  if (chart.type === "treemap") {
+    const tmpCard = buildTreemapCard(chart);
+    wrap.innerHTML = "";
+    const tbody = tmpCard.querySelector(".chart-body");
+    if (tbody) wrap.appendChild(tbody.cloneNode(true));
+    return;
+  }
+  if (chart.type === "stacked_bar") {
+    const canvas = document.createElement("canvas");
+    wrap.appendChild(canvas);
+    explorerInstance = buildStackedBarCard(chart).querySelector("canvas").__chartjs_instance || null;
+    const series = chart.series || {};
+    const keys   = Object.keys(series);
+    explorerInstance = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels: chart.labels || [],
+        datasets: keys.map((k,i) => ({ label:k, data:series[k], backgroundColor: PALETTE[i%PALETTE.length]+"cc", borderWidth:0 }))
+      },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true,labels:{color:"#9ca3af",font:{size:10}}}}, scales:{ x:{stacked:true,ticks:{color:"#6b7280",font:{size:9}}},y:{stacked:true,ticks:{color:"#6b7280",font:{size:9}}} } }
+    });
+    return;
+  }
+  if (chart.type === "heatmap") {
+    const hCard = buildHeatmapCard(chart);
+    wrap.style.height = "auto";
+    wrap.style.overflowX = "auto";
+    const hBody = hCard.querySelector(".chart-body");
+    if (hBody) { wrap.innerHTML = hBody.innerHTML; }
+    return;
+  }
+  if (chart.type === "violin") {
+    const vCard = buildViolinCard(chart);
+    const canvas = document.createElement("canvas");
+    wrap.appendChild(canvas);
+    const vBody = vCard.querySelector("canvas");
+    if (vBody && vBody.__chart) explorerInstance = vBody.__chart;
+    else {
+      // re-render violin in our canvas
+      const groups = Object.entries(chart.groups || {}).filter(([,g]) => !g.insufficient_data);
+      const labels = groups.map(([n]) => n);
+      const medians = groups.map(([,g]) => g.median ?? null);
+      const q1s = groups.map(([,g]) => g.q1 ?? null);
+      const q3s = groups.map(([,g]) => g.q3 ?? null);
+      explorerInstance = new Chart(canvas, {
+        type:"bar", data:{ labels, datasets:[
+          {label:"Q1–Median", data: medians.map((m,i) => m!=null&&q1s[i]!=null?m-q1s[i]:null), backgroundColor:"rgba(79,140,255,0.25)",borderWidth:0},
+          {label:"Median–Q3", data: q3s.map((q,i) => q!=null&&medians[i]!=null?q-medians[i]:null), backgroundColor:"rgba(79,140,255,0.55)",borderWidth:0},
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true,labels:{color:"#9ca3af",font:{size:9}}}}, scales:{ x:{stacked:true,ticks:{color:"#6b7280",font:{size:9}}}, y:{stacked:true,ticks:{color:"#6b7280",font:{size:9}}} } }
+      });
+    }
+    return;
+  }
+  if (chart.type === "lollipop") {
+    const lCard = buildLollipopCard(chart);
+    const lBody = lCard.querySelector(".chart-body");
+    if (lBody) { wrap.innerHTML = ""; wrap.appendChild(lBody.cloneNode(true)); }
+    return;
+  }
+  if (chart.type === "donut") {
+    const canvas = document.createElement("canvas");
+    wrap.appendChild(canvas);
+    explorerInstance = new Chart(canvas, {
+      type:"doughnut",
+      data:{ labels:chart.labels||[], datasets:[{data:chart.values||[], backgroundColor:PALETTE.slice(0,(chart.values||[]).length), borderWidth:0}] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:"60%", plugins:{legend:{display:true,position:"right",labels:{color:"#9ca3af",font:{size:10},boxWidth:12}}} }
+    });
+    return;
+  }
+
+  // Standard Chart.js types
+  const canvas = document.createElement("canvas");
+  wrap.appendChild(canvas);
+  const fakeChart = { ...chart, recommended: false, priority: "high" };
+  explorerInstance = null;
+  const card2 = buildChartJSCard(fakeChart);
+  // Extract the instance that was just pushed
+  if (chartInstances.length > 0) {
+    explorerInstance = chartInstances.pop();
+    explorerInstance.destroy();
+  }
+
+  // Rebuild directly on our canvas
+  if (chart.type === "scatter") {
+    const pts = (chart.x||[]).map((x,i) => ({x, y:(chart.y||[])[i]})).filter(p=>p.x!=null&&p.y!=null);
+    explorerInstance = new Chart(canvas, {
+      type:"scatter", data:{datasets:[{data:pts,backgroundColor:"rgba(79,140,255,0.55)",pointRadius:3.5}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+               scales:{x:{ticks:{color:"#6b7280",font:{size:10}}},y:{ticks:{color:"#6b7280",font:{size:10}}}}}
+    });
+  } else if (chart.type === "pie") {
+    explorerInstance = new Chart(canvas, {
+      type:"pie", data:{labels:chart.labels||[],datasets:[{data:chart.values||[],backgroundColor:PALETTE.slice(0,(chart.values||[]).length),borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"right",labels:{color:"#9ca3af",font:{size:10},boxWidth:12}}}}
+    });
+  } else {
+    const isLine = ["line","area","density"].includes(chart.type);
+    const values = (chart.values||[]).map(v=>v===null?null:+v);
+    explorerInstance = new Chart(canvas, {
+      type: isLine ? "line" : "bar",
+      data:{ labels:chart.labels||[], datasets:[{
+        data:values,
+        backgroundColor: isLine ? (chart.type==="area"?"rgba(79,140,255,0.15)":chart.type==="density"?"rgba(167,139,250,0.12)":"transparent") : (values||[]).map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderColor: isLine ? (chart.type==="density"?"#a78bfa":"#4f8cff") : undefined,
+        borderWidth: isLine?2:0, fill:["area","density"].includes(chart.type), tension:isLine?0.35:undefined,
+        pointRadius: isLine?(values.length>80?0:2):undefined,
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+               scales:{x:{ticks:{color:"#6b7280",font:{size:9},maxTicksLimit:10}},y:{ticks:{color:"#6b7280",font:{size:9}}}}}
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FEATURE 4 — PDF EXPORT
+// ══════════════════════════════════════════════════════════════
+async function exportPDF() {
+  if (!G.filename) return;
+
+  // Build a printable HTML page in a new window
+  const imp    = G.column_importance || {};
+  const stats  = G.stats || {};
+  const insightsHTML = (G.insights || []).slice(0, 15).map(i =>
+    `<div class="ins-row sev-${i.severity}">
+      <span class="ins-sev">${i.severity.toUpperCase()}</span>
+      <span class="ins-cat">${i.category.replace("_"," ")}</span>
+      <span class="ins-text">${i.text}</span>
+     </div>`
+  ).join("");
+
+  const colRows = (G.columns || []).map(c => {
+    const s = stats[c] || {};
+    const p = imp[c] || {};
+    let detail = "";
+    if (s.type === "numeric") detail = `mean=${s.mean ?? "—"}, std=${s.std ?? "—"}, missing=${s.missing_rate ?? 0}%`;
+    else if (s.type === "categorical") detail = `${s.unique_count ?? "?"} unique, top="${s.dominant_value}"`;
+    else if (s.type === "date") detail = `${s.min_date} → ${s.max_date}`;
+    return `<tr>
+      <td>${c}</td><td>${s.type||"?"}</td>
+      <td class="imp-${p.label}">${p.label||"—"}</td>
+      <td>${detail}</td>
+    </tr>`;
+  }).join("");
+
+  const aiHeadline = document.getElementById("ai-headline")?.textContent || "";
+  const aiSummary  = document.getElementById("ai-summary-body")?.textContent || "";
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>DataSage Report — ${G.filename}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Arial,sans-serif; font-size:12px; color:#1a1a2e; padding:32px; }
+  h1 { font-size:22px; font-weight:800; color:#0f172a; margin-bottom:4px; }
+  .meta { color:#64748b; font-size:11px; margin-bottom:28px; }
+  h2 { font-size:14px; font-weight:700; color:#0f172a; margin:24px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px; }
+  .summary-box { background:#f0f4ff; border:1px solid #c7d2fe; border-radius:8px; padding:14px 18px; margin-bottom:24px; }
+  .summary-headline { font-size:14px; font-weight:700; margin-bottom:8px; }
+  .summary-text { font-size:12px; line-height:1.6; color:#334155; }
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .stat-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px; text-align:center; }
+  .stat-val { font-size:18px; font-weight:700; color:#4f8cff; }
+  .stat-lbl { font-size:10px; color:#94a3b8; margin-top:3px; text-transform:uppercase; letter-spacing:.06em; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#f1f5f9; padding:8px 10px; text-align:left; font-weight:600; color:#475569; border-bottom:2px solid #e2e8f0; }
+  td { padding:7px 10px; border-bottom:1px solid #f1f5f9; }
+  tr:hover td { background:#f8fafc; }
+  .imp-important { color:#059669; font-weight:700; }
+  .imp-moderate  { color:#d97706; }
+  .imp-low       { color:#94a3b8; }
+  .ins-row { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #f1f5f9; align-items:flex-start; }
+  .ins-sev { font-size:9px; font-weight:700; padding:2px 7px; border-radius:12px; flex-shrink:0; margin-top:1px; }
+  .sev-high   .ins-sev { background:#fee2e2; color:#dc2626; }
+  .sev-medium .ins-sev { background:#fef3c7; color:#d97706; }
+  .sev-low    .ins-sev { background:#f1f5f9; color:#64748b; }
+  .ins-cat { font-size:10px; color:#64748b; flex-shrink:0; width:80px; margin-top:2px; }
+  .ins-text { font-size:11px; color:#334155; line-height:1.5; }
+  .footer { margin-top:32px; padding-top:12px; border-top:1px solid #e2e8f0; font-size:10px; color:#94a3b8; display:flex; justify-content:space-between; }
+  @media print { body{padding:16px} }
+</style></head><body>
+<h1>DataSage — Data Analysis Report</h1>
+<div class="meta">File: ${G.filename} &nbsp;•&nbsp; ${G.rows?.toLocaleString()} rows &nbsp;•&nbsp; ${G.columns?.length} columns &nbsp;•&nbsp; Generated ${new Date().toLocaleString()}</div>
+
+${aiHeadline ? `<div class="summary-box"><div class="summary-headline">${aiHeadline}</div><div class="summary-text">${aiSummary}</div></div>` : ""}
+
+<div class="stats-grid">
+  <div class="stat-box"><div class="stat-val">${fmt(G.rows)}</div><div class="stat-lbl">Rows</div></div>
+  <div class="stat-box"><div class="stat-val">${G.columns?.length}</div><div class="stat-lbl">Columns</div></div>
+  <div class="stat-box"><div class="stat-val">${G.type_counts?.numeric||0}</div><div class="stat-lbl">Numeric</div></div>
+  <div class="stat-box"><div class="stat-val">${(G.quality?.overall_missing_pct||0)+"%"}</div><div class="stat-lbl">Missing</div></div>
+</div>
+
+<h2>Column Summary</h2>
+<table><thead><tr><th>Column</th><th>Type</th><th>Importance</th><th>Key Stats</th></tr></thead>
+<tbody>${colRows}</tbody></table>
+
+${insightsHTML ? `<h2>Key Insights (${(G.insights||[]).length} total)</h2><div>${insightsHTML}</div>` : ""}
+
+<div class="footer">
+  <span>Generated by DataSage</span>
+  <span>${new Date().toLocaleDateString()}</span>
+</div>
+</body></html>`;
+
+  const win = window.open("", "_blank");
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.print(); };
 }
 
 // ── Helpers ───────────────────────────────────────

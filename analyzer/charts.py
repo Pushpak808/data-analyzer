@@ -104,7 +104,6 @@ def _univariate(col: str, series: pd.Series, s: dict) -> dict:
             return charts
         builders = {
             "histogram": lambda: _histogram(num, col),
-            "density":   lambda: _density(num, col),
             "boxplot":   lambda: _box_single(num, col),
             "violin":    lambda: _violin_single(num, col),
             "line":      lambda: _line_index(num, col),
@@ -314,22 +313,6 @@ def _histogram(series: pd.Series, col: str) -> dict:
         "col":    col,
     }
 
-
-def _density(series: pd.Series, col: str) -> dict:
-    from scipy.stats import gaussian_kde
-    arr  = series.to_numpy(dtype=float)
-    kde  = gaussian_kde(arr)
-    x    = np.linspace(arr.min(), arr.max(), 80)
-    y    = kde(x)
-    span = float(arr.max() - arr.min())
-    dec  = 0 if span > 100 else (1 if span > 10 else (2 if span > 1 else 3))
-    return {
-        "type":   "density",
-        "title":  f"{col} — Density",
-        "labels": [round(float(v), dec) for v in x],
-        "values": _sl(y),
-        "col":    col,
-    }
 
 
 def _box_single(series: pd.Series, col: str) -> dict:
@@ -719,3 +702,158 @@ def _nan_to_none(arr) -> list:
 
 def _sturges(n: int) -> int:
     return max(5, min(50, int(math.ceil(math.log2(n) + 1))))
+
+
+# ══════════════════════════════════════════════════════════════
+# SINGLE CHART  (for the custom chart picker endpoint)
+# ══════════════════════════════════════════════════════════════
+
+def generate_single_chart(
+    df:         pd.DataFrame,
+    stats:      dict,
+    col_x:      str,
+    col_y:      str | None,
+    chart_type: str,
+) -> dict | None:
+    """
+    Generate one specific chart type for a column (univariate)
+    or column pair (bivariate). Called by the /chart endpoint.
+
+    Supports all chart types the frontend can render:
+      Numeric univariate:    histogram, boxplot, violin, line
+      Categorical univariate: bar, lollipop, pie, donut, treemap
+      Bivariate:             scatter, line, area, grouped_bar, lollipop,
+                             boxplot, violin, stacked_bar, heatmap
+    """
+    # ── UNIVARIATE ────────────────────────────────────────────
+    if col_y is None:
+        sx       = stats[col_x]
+        col_type = sx["type"]
+        clean    = df[col_x].dropna()
+
+        if col_type == "numeric":
+            num = _to_numeric(clean)
+            if num is None:
+                return None
+            dispatch = {
+                "histogram": lambda: _histogram(num, col_x),
+                "boxplot":   lambda: _box_single(num, col_x),
+                "violin":    lambda: _violin_single(num, col_x),
+                "line":      lambda: _line_index(num, col_x),
+            }
+        elif col_type == "categorical":
+            dispatch = {
+                "bar":      lambda: _bar(clean, col_x),
+                "lollipop": lambda: _lollipop(clean, col_x),
+                "pie":      lambda: _pie(clean, col_x),
+                "donut":    lambda: _donut(clean, col_x),
+                "treemap":  lambda: _treemap(clean, col_x),
+            }
+        else:
+            return None
+
+        fn = dispatch.get(chart_type)
+        if not fn:
+            return None
+        data = fn()
+        return {**data, "priority": "high", "recommended": False,
+                "alternatives": [], "custom": True}
+
+    # ── BIVARIATE ─────────────────────────────────────────────
+    sx, sy = stats[col_x], stats[col_y]
+    tx, ty = sx["type"], sy["type"]
+    pair   = df[[col_x, col_y]].dropna()
+    if len(pair) < 3:
+        return None
+
+    data = None
+
+    if chart_type in ("line", "area") and (tx == "date" or ty == "date"):
+        date_col = col_x if tx == "date" else col_y
+        num_col  = col_y if tx == "date" else col_x
+        p = pair.copy()
+        p[date_col] = pd.to_datetime(p[date_col], errors="coerce")
+        p = p.dropna().sort_values(date_col)
+        data = _area(p, date_col, num_col) if chart_type == "area" \
+               else _time_line(p, date_col, num_col)
+
+    elif chart_type == "scatter":
+        nx = _to_numeric(pair[col_x])
+        ny = _to_numeric(pair[col_y])
+        if nx is not None and ny is not None:
+            valid = pd.DataFrame({"x": nx, "y": ny}).dropna()
+            data  = _scatter(valid, col_x, col_y)
+
+    elif chart_type == "line" and tx == "numeric" and ty == "numeric":
+        nx = _to_numeric(pair[col_x])
+        ny = _to_numeric(pair[col_y])
+        if nx is not None and ny is not None:
+            valid = pd.DataFrame({"x": nx, "y": ny}).dropna().sort_values("x")
+            data  = _line_xy(valid, col_x, col_y)
+
+    elif chart_type in ("grouped_bar", "bar"):
+        if tx == "categorical":
+            ny = _to_numeric(pair[col_y])
+            if ny is not None:
+                valid = pd.DataFrame({col_x: pair[col_x], col_y: ny}).dropna()
+                data  = _grouped_bar(valid, col_x, col_y)
+        else:
+            nx = _to_numeric(pair[col_x])
+            if nx is not None:
+                valid = pd.DataFrame({col_x: nx, col_y: pair[col_y]}).dropna()
+                data  = _grouped_bar(valid, col_y, col_x)
+
+    elif chart_type == "lollipop":
+        if tx == "categorical":
+            ny = _to_numeric(pair[col_y])
+            if ny is not None:
+                valid = pd.DataFrame({col_x: pair[col_x], col_y: ny}).dropna()
+                data  = _grouped_lollipop(valid, col_x, col_y)
+        else:
+            nx = _to_numeric(pair[col_x])
+            if nx is not None:
+                valid = pd.DataFrame({col_x: nx, col_y: pair[col_y]}).dropna()
+                data  = _grouped_lollipop(valid, col_y, col_x)
+
+    elif chart_type == "boxplot":
+        if tx == "categorical":
+            ny = _to_numeric(pair[col_y])
+            if ny is not None:
+                valid = pd.DataFrame({col_x: pair[col_x], col_y: ny}).dropna()
+                data  = _grouped_box(valid, col_x, col_y)
+        else:
+            nx = _to_numeric(pair[col_x])
+            if nx is not None:
+                valid = pd.DataFrame({col_x: nx, col_y: pair[col_y]}).dropna()
+                data  = _grouped_box(valid, col_y, col_x)
+
+    elif chart_type == "violin":
+        if tx == "categorical":
+            ny = _to_numeric(pair[col_y])
+            if ny is not None:
+                valid = pd.DataFrame({col_x: pair[col_x], col_y: ny}).dropna()
+                data  = _grouped_violin(valid, col_x, col_y)
+        else:
+            nx = _to_numeric(pair[col_x])
+            if nx is not None:
+                valid = pd.DataFrame({col_x: nx, col_y: pair[col_y]}).dropna()
+                data  = _grouped_violin(valid, col_y, col_x)
+
+    elif chart_type == "stacked_bar":
+        if tx == "categorical" and ty == "categorical":
+            data = _stacked_bar(pair, col_x, col_y)
+
+    elif chart_type == "heatmap":
+        if tx == "categorical" and ty == "categorical":
+            data = _cat_cat_heatmap(pair, col_x, col_y)
+        elif tx == "categorical":
+            ny = _to_numeric(pair[col_y])
+            if ny is not None:
+                valid = pd.DataFrame({col_x: pair[col_x], col_y: ny}).dropna()
+                data  = _cat_num_heatmap(valid, col_x, col_y)
+
+    if not data:
+        return None
+
+    return {**data, "priority": "high", "recommended": False,
+            "alternatives": [], "custom": True}
