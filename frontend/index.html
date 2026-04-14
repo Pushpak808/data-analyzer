@@ -308,6 +308,13 @@
   .p-medium { background: rgba(251,191,36,0.12); color: var(--amber);  border: 1px solid rgba(251,191,36,0.2); }
   .p-low    { background: rgba(107,114,128,0.15); color: var(--muted); border: 1px solid rgba(107,114,128,0.2); }
   .rec-badge { background: linear-gradient(90deg,rgba(79,140,255,0.25),rgba(167,139,250,0.25)); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.35); }
+  .meta-badge {
+    font-family: var(--font-mono); font-size: .65rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 5px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--muted); white-space: nowrap;
+  }
+  .dist-badge { color: var(--accent2); border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.08); }
   .chart-body { padding: 14px; position: relative; height: 220px; }
   .chart-body canvas { width: 100% !important; height: 100% !important; }
 
@@ -797,7 +804,7 @@ let queryHistory   = [];
 
 // Chart types available in explorer per combination
 const CHART_TYPES = {
-  "numeric":            ["histogram","density","boxplot","violin","line"],
+  "numeric":            ["histogram","boxplot","violin","line"],
   "categorical":        ["bar","lollipop","pie","donut","treemap"],
   "date":               ["line"],
   "numeric+numeric":    ["scatter","line"],
@@ -809,7 +816,7 @@ const CHART_TYPES = {
 };
 
 const CHART_TYPE_LABELS = {
-  histogram:"Histogram", density:"Density", boxplot:"Box Plot", violin:"Violin",
+  histogram:"Histogram", boxplot:"Box Plot", violin:"Violin",
   line:"Line", bar:"Bar", lollipop:"Lollipop", pie:"Pie", donut:"Donut",
   treemap:"Treemap", scatter:"Scatter", grouped_bar:"Grouped Bar",
   stacked_bar:"Stacked Bar", heatmap:"Heatmap", area:"Area",
@@ -864,7 +871,7 @@ function resetToUpload() {
 
 // ── Tabs ─────────────────────────────────────────
 function switchTab(name) {
-  const names = ["overview","insights","explorer","charts","stats","features"];
+  const names = ["overview","insights","charts","explorer","stats","features"];
   document.querySelectorAll(".tab").forEach((t, i) => {
     t.classList.toggle("active", names[i] === name);
   });
@@ -965,20 +972,26 @@ function buildCharts() {
 
   entries.forEach(([key, chart]) => {
     try {
+      const meta = {};
+      if (chart.correlation != null) meta.correlation  = chart.correlation;
+      if (chart.distribution)        meta.distribution = chart.distribution;
+
       let card;
       switch (chart.type) {
-        case "missing_heatmap":    card = buildMissingCard(chart);    break;
-        case "correlation_matrix": card = buildCorrCard(chart);        break;
-        case "boxplot":            card = buildBoxCard(chart);         break;
-        case "violin":             card = buildViolinCard(chart);      break;
-        case "lollipop":           card = buildLollipopCard(chart);    break;
-        case "donut":              card = buildDonutCard(chart);       break;
-        case "treemap":            card = buildTreemapCard(chart);     break;
-        case "stacked_bar":        card = buildStackedBarCard(chart);  break;
-        case "heatmap":            card = buildHeatmapCard(chart);     break;
-        case "density":            card = buildDensityCard(chart);     break;
-        case "area":               card = buildAreaCard(chart);        break;
-        default:                   card = buildChartJSCard(chart);     break;
+        case "missing_heatmap":    card = buildMissingCard(chart);             break;
+        case "correlation_matrix": card = buildCorrCard(chart);                break;
+        case "boxplot":            card = buildBoxCard(chart);                 break;
+        case "violin":             card = buildViolinCard(chart);              break;
+        case "lollipop":           card = buildLollipopCard(chart);            break;
+        case "donut":              card = buildDonutCard(chart);               break;
+        case "treemap":            card = buildTreemapCard(chart);             break;
+        case "stacked_bar":        card = buildStackedBarCard(chart);          break;
+        case "heatmap":            card = buildHeatmapCard(chart);             break;
+        case "area":               card = buildAreaCard(chart);                break;
+        case "scatter":            card = buildScatterCard(chart, meta);       break;
+        case "histogram":          card = buildHistogramCard(chart, meta);     break;
+        case "bar":                card = buildBarCard(chart, meta);           break;
+        default:                   card = buildChartJSCard(chart);             break;
       }
       if (card) {
         // "recommended" badge
@@ -990,16 +1003,32 @@ function buildCharts() {
   });
 }
 
-function makeCard(title, priority, recommended) {
+function makeCard(title, priority, recommended, meta) {
   const div   = document.createElement("div");
   div.className = "chart-card";
   const recBadge = recommended ? `<span class="priority-badge rec-badge">✦ Recommended</span>` : "";
   const priClass = recommended ? "p-high" : `p-${priority}`;
   const priBadge = !recommended && priority ? `<span class="priority-badge ${priClass}">${priority}</span>` : "";
+
+  // meta badges: correlation value, distribution tag
+  let metaBadges = "";
+  if (meta) {
+    if (meta.correlation != null) {
+      const r   = meta.correlation;
+      const abs = Math.abs(r);
+      const col = abs >= 0.7 ? "var(--green)" : abs >= 0.4 ? "var(--amber)" : "var(--muted)";
+      const dir = r >= 0 ? "+" : "−";
+      metaBadges += `<span class="meta-badge" style="color:${col}" title="Pearson r">r = ${dir}${abs.toFixed(2)}</span>`;
+    }
+    if (meta.distribution) {
+      metaBadges += `<span class="meta-badge dist-badge">${meta.distribution}</span>`;
+    }
+  }
+
   div.innerHTML = `
     <div class="chart-header">
       <div class="chart-title">${title}</div>
-      <div style="display:flex;gap:6px">${recBadge}${priBadge}</div>
+      <div style="display:flex;gap:6px;align-items:center">${metaBadges}${recBadge}${priBadge}</div>
     </div>
     <div class="chart-body"><canvas></canvas></div>`;
   return div;
@@ -1153,6 +1182,157 @@ function buildAreaCard(chart) {
       scales: {
         x: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.03)" } },
         y: { ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.03)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Scatter (with trendline + outlier overlay) ────
+function buildScatterCard(chart, meta) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended, meta);
+  const canvas = card.querySelector("canvas");
+
+  const pts = (chart.x || []).map((x, i) => ({ x, y: (chart.y || [])[i] }))
+                             .filter(p => p.x != null && p.y != null);
+
+  // Separate outlier points for red highlight
+  const outlierSet = new Set((chart.outliers || []).map(o => `${o.x},${o.y}`));
+  const normal   = pts.filter(p => !outlierSet.has(`${p.x},${p.y}`));
+  const outliers = (chart.outliers || []);
+
+  const datasets = [
+    {
+      label: "Data",
+      data: normal,
+      backgroundColor: "rgba(79,140,255,0.5)",
+      pointRadius: 3.5,
+      pointHoverRadius: 5,
+    }
+  ];
+
+  if (outliers.length) {
+    datasets.push({
+      label: "Outliers",
+      data: outliers,
+      backgroundColor: "rgba(248,113,113,0.75)",
+      pointRadius: 5,
+      pointStyle: "triangle",
+      pointHoverRadius: 7,
+    });
+  }
+
+  // Trendline as a line dataset
+  if (chart.trendline) {
+    const tl = chart.trendline;
+    datasets.push({
+      label: "Trend",
+      data: [{ x: tl.x_start, y: tl.y_start }, { x: tl.x_end, y: tl.y_end }],
+      type: "line",
+      borderColor: "rgba(251,191,36,0.8)",
+      borderWidth: 2,
+      borderDash: [5, 4],
+      pointRadius: 0,
+      fill: false,
+    });
+  }
+
+  chartInstances.push(new Chart(canvas, {
+    type: "scatter",
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: outliers.length > 0 || !!chart.trendline,
+                  labels: { color: "#9ca3af", font: { size: 10 }, boxWidth: 12 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `(${ctx.parsed.x?.toFixed(2)}, ${ctx.parsed.y?.toFixed(2)})`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { ticks: { color: "#6b7280", font: { size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Histogram (with distribution tag) ─────────────
+function buildHistogramCard(chart, meta) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended, meta);
+  const canvas = card.querySelector("canvas");
+  const values = (chart.values || []).map(v => v === null ? null : +v);
+
+  chartInstances.push(new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: chart.labels || [],
+      datasets: [{
+        data: values,
+        backgroundColor: values.map((_, i) => PALETTE[i % PALETTE.length]),
+        borderWidth: 0,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 10, maxRotation: 35 }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { ticks: { color: "#6b7280", font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.04)" } }
+      }
+    }
+  }));
+  return card;
+}
+
+// ── Bar (grouped_bar with error bars if std present) ──
+function buildBarCard(chart, meta) {
+  const card   = makeCard(chart.title, chart.priority, chart.recommended, meta);
+  const canvas = card.querySelector("canvas");
+  const values = (chart.values || []).map(v => v === null ? null : +v);
+  const stds   = chart.std || [];
+
+  // Build error bar data if std is available
+  const hasErrors = stds.length === values.length && stds.some(v => v != null && v > 0);
+
+  chartInstances.push(new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: chart.labels || [],
+      datasets: [{
+        data: values,
+        backgroundColor: values.map((_, i) => PALETTE[i % PALETTE.length] + "cc"),
+        borderWidth: 0,
+        borderRadius: 3,
+        // Error bars via custom plugin aren't natively in Chart.js 4 without a plugin,
+        // so we encode std into the tooltip instead
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: ctx => {
+              if (!hasErrors) return "";
+              const std = stds[ctx.dataIndex];
+              const cnt = (chart.counts || [])[ctx.dataIndex];
+              const parts = [];
+              if (std != null) parts.push(`± ${std.toFixed(2)} std`);
+              if (cnt != null) parts.push(`n = ${cnt}`);
+              return parts.join("  ");
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 35, maxTicksLimit: 12 }, grid: { color: "rgba(255,255,255,0.04)" } },
+        y: { ticks: { color: "#6b7280", font: { size: 10 }, maxTicksLimit: 6 }, grid: { color: "rgba(255,255,255,0.04)" } }
       }
     }
   }));
@@ -1502,32 +1682,68 @@ function buildMissingCard(chart) {
   const canvas = div.querySelector("canvas");
 
   const cols = chart.columns || [];
-  // new API sends pre-computed missing_pcts; fall back to row-counting for old responses
   let missing;
   if (chart.missing_pcts && chart.missing_pcts.length === cols.length) {
-    missing = chart.missing_pcts.map(v => +(v || 0).toFixed(1));
+    missing = chart.missing_pcts.map(v => +(v || 0));
   } else {
     const rows = chart.rows || [];
     missing = cols.map((_, i) => {
       if (!rows.length) return 0;
       let m = 0;
       rows.forEach(r => { if (r && r[i]) m++; });
-      return +(m / rows.length * 100).toFixed(1);
+      return +(m / rows.length * 100);
     });
   }
+
+  // Sort descending by missing %
+  const paired = cols.map((c, i) => ({ col: c, pct: missing[i] }))
+                     .sort((a, b) => b.pct - a.pct);
+  const sortedCols = paired.map(p => p.col);
+  const sortedPcts = paired.map(p => +p.pct.toFixed(1));
+
+  // Colour gradient: red >30%, amber >5%, green otherwise
+  const colours = sortedPcts.map(v =>
+    v > 30 ? "#f87171" : v > 5 ? "#fbbf24" : "#34d399"
+  );
 
   chartInstances.push(new Chart(canvas, {
     type: "bar",
     data: {
-      labels: cols,
-      datasets: [{ label: "Missing %", data: missing, backgroundColor: missing.map(v => v > 30 ? "#f87171" : v > 10 ? "#fbbf24" : "#34d399") }]
+      labels: sortedCols,
+      datasets: [{
+        label: "Missing %",
+        data: sortedPcts,
+        backgroundColor: colours,
+        borderWidth: 0,
+        borderRadius: 3,
+      }]
     },
     options: {
+      indexAxis: sortedCols.length > 8 ? "y" : "x",   // horizontal for many cols
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = ctx.parsed[sortedCols.length > 8 ? "x" : "y"];
+              return `${pct.toFixed(1)}% missing`;
+            }
+          }
+        }
+      },
       scales: {
-        x: { ticks: { color: "#6b7280", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.04)" } },
-        y: { beginAtZero: true, max: 100, ticks: { color: "#6b7280", font: { size: 10 }, callback: v => v + "%" }, grid: { color: "rgba(255,255,255,0.04)" } }
+        x: {
+          ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 35 },
+          grid:  { color: "rgba(255,255,255,0.04)" },
+          ...(sortedCols.length <= 8 ? {} : { max: 100 }),
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#6b7280", font: { size: 9 } },
+          grid: { color: "rgba(255,255,255,0.04)" },
+          ...(sortedCols.length > 8 ? {} : { max: 100, callback: v => v + "%" }),
+        }
       }
     }
   }));
@@ -2047,15 +2263,15 @@ function renderExplorerChartData(chart, container) {
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:"right",labels:{color:"#9ca3af",font:{size:10},boxWidth:12}}}}
     });
   } else {
-    const isLine = ["line","area","density"].includes(chart.type);
+    const isLine = ["line","area"].includes(chart.type);
     const values = (chart.values||[]).map(v=>v===null?null:+v);
     explorerInstance = new Chart(canvas, {
       type: isLine ? "line" : "bar",
       data:{ labels:chart.labels||[], datasets:[{
         data:values,
-        backgroundColor: isLine ? (chart.type==="area"?"rgba(79,140,255,0.15)":chart.type==="density"?"rgba(167,139,250,0.12)":"transparent") : (values||[]).map((_,i)=>PALETTE[i%PALETTE.length]),
-        borderColor: isLine ? (chart.type==="density"?"#a78bfa":"#4f8cff") : undefined,
-        borderWidth: isLine?2:0, fill:["area","density"].includes(chart.type), tension:isLine?0.35:undefined,
+        backgroundColor: isLine ? (chart.type==="area"?"rgba(79,140,255,0.15)":"transparent") : (values||[]).map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderColor: isLine ? "#4f8cff" : undefined,
+        borderWidth: isLine?2:0, fill: chart.type === "area", tension:isLine?0.35:undefined,
         pointRadius: isLine?(values.length>80?0:2):undefined,
       }]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},

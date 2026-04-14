@@ -103,7 +103,7 @@ def _univariate(col: str, series: pd.Series, s: dict) -> dict:
         if num is None or len(num) == 0:
             return charts
         builders = {
-            "histogram": lambda: _histogram(num, col),
+            "histogram": lambda: _histogram(num, col, s),
             "boxplot":   lambda: _box_single(num, col),
             "violin":    lambda: _violin_single(num, col),
             "line":      lambda: _line_index(num, col),
@@ -145,8 +145,8 @@ def _build_set(builders: dict, recommended: str, alts: list, col: str) -> dict:
                         "recommended": ctype == recommended,
                         "alternatives": alts if ctype == recommended else [],
                     }
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning("[charts] builder %s for %s failed: %s", ctype, col, e)
     return out
 
 
@@ -235,8 +235,8 @@ def _bivariate(
                 "priority": "high", "recommended": True, "alternatives": alts,
             }
 
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("[charts] bivariate %s × %s failed: %s", col_x, col_y, e)
 
     return charts
 
@@ -277,13 +277,20 @@ def _cat_cat_chart(df: pd.DataFrame, col_x: str, col_y: str, chart_type: str) ->
 # NUMERIC CHART BUILDERS
 # ══════════════════════════════════════════════════════════════
 
-def _histogram(series: pd.Series, col: str) -> dict:
-    """Discrete → one bar per integer. Continuous → Sturges bins with clean labels."""
+def _histogram(series: pd.Series, col: str, stats: dict | None = None) -> dict:
+    """
+    Discrete  → one bar per integer value.
+    Continuous → Freedman-Diaconis bins (better than Sturges for skewed data),
+                 falling back to Sturges if IQR=0.
+    Adds a 'distribution' tag based on skewness.
+    """
+    import logging
     try:
         is_disc = bool(series.dropna().apply(
             lambda x: float(x) == int(float(x))
         ).all())
-    except Exception:
+    except Exception as e:
+        logging.warning("_histogram discrete check failed for %s: %s", col, e)
         is_disc = False
 
     n_uniq = series.nunique()
@@ -291,27 +298,56 @@ def _histogram(series: pd.Series, col: str) -> dict:
     if is_disc and n_uniq <= 30:
         vc = series.value_counts().sort_index()
         return {
-            "type":      "histogram",
-            "title":     f"{col} — Distribution",
-            "labels":    [str(int(float(v))) for v in vc.index],
-            "values":    vc.values.tolist(),
-            "col":       col,
+            "type":        "histogram",
+            "title":       f"{col} — Distribution",
+            "labels":      [str(int(float(v))) for v in vc.index],
+            "values":      vc.values.tolist(),
+            "col":         col,
             "is_discrete": True,
+            "distribution": _dist_tag(stats),
         }
 
-    n_bins         = _sturges(len(series))
-    counts, edges  = np.histogram(series, bins=n_bins)
-    span           = edges[-1] - edges[0]
-    dec            = 0 if span > 100 else (1 if span > 10 else (2 if span > 1 else 3))
-    labels         = [f"{round(edges[i], dec)}–{round(edges[i+1], dec)}"
-                      for i in range(len(counts))]
+    arr  = series.dropna().to_numpy(dtype=float)
+    n    = len(arr)
+
+    # Freedman-Diaconis: h = 2 * IQR * n^(-1/3)
+    q1, q3 = float(np.percentile(arr, 25)), float(np.percentile(arr, 75))
+    iqr    = q3 - q1
+    if iqr > 0:
+        h      = 2 * iqr * (n ** (-1/3))
+        span   = arr.max() - arr.min()
+        n_bins = int(math.ceil(span / h)) if h > 0 else _sturges(n)
+        n_bins = max(5, min(60, n_bins))
+    else:
+        n_bins = _sturges(n)
+
+    counts, edges = np.histogram(arr, bins=n_bins)
+    span          = edges[-1] - edges[0]
+    dec           = 0 if span > 100 else (1 if span > 10 else (2 if span > 1 else 3))
+    labels        = [f"{round(edges[i], dec)}–{round(edges[i+1], dec)}"
+                     for i in range(len(counts))]
     return {
-        "type":   "histogram",
-        "title":  f"{col} — Distribution",
-        "labels": labels,
-        "values": counts.tolist(),
-        "col":    col,
+        "type":         "histogram",
+        "title":        f"{col} — Distribution",
+        "labels":       labels,
+        "values":       counts.tolist(),
+        "col":          col,
+        "distribution": _dist_tag(stats),
     }
+
+
+def _dist_tag(stats: dict | None) -> str:
+    """Return a human-readable distribution label from skewness."""
+    if not stats:
+        return ""
+    skew = stats.get("skewness") or 0
+    if abs(skew) < 0.5:
+        return "normal-like"
+    if skew >  1.0:
+        return "right-skewed"
+    if skew < -1.0:
+        return "left-skewed"
+    return "mildly skewed"
 
 
 
@@ -423,14 +459,65 @@ def _treemap(series: pd.Series, col: str) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 def _scatter(df: pd.DataFrame, x: str, y: str) -> dict:
+    import logging
     s = df.sample(min(600, len(df)), random_state=42) if len(df) > 600 else df
+
+    xs = _sl(s["x"])
+    ys = _sl(s["y"])
+
+    # ── Trendline (linear regression) ────────────────────────
+    trendline = None
+    try:
+        clean = s[["x","y"]].dropna()
+        if len(clean) >= 3:
+            m, b   = np.polyfit(clean["x"].astype(float),
+                                clean["y"].astype(float), 1)
+            x_min  = float(clean["x"].min())
+            x_max  = float(clean["x"].max())
+            trendline = {
+                "slope":     round(float(m), 6),
+                "intercept": round(float(b), 6),
+                "x_start":   round(x_min, 4),
+                "x_end":     round(x_max, 4),
+                "y_start":   round(float(m * x_min + b), 4),
+                "y_end":     round(float(m * x_max + b), 4),
+            }
+    except Exception as e:
+        logging.warning("Trendline failed for %s vs %s: %s", x, y, e)
+
+    # ── Outlier overlay (IQR on both axes) ───────────────────
+    outlier_indices = set()
+    try:
+        for col_name in ("x", "y"):
+            arr  = s[col_name].dropna().astype(float)
+            q1   = float(arr.quantile(0.25))
+            q3   = float(arr.quantile(0.75))
+            iqr  = q3 - q1
+            mask = (s[col_name] < q1 - 1.5*iqr) | (s[col_name] > q3 + 1.5*iqr)
+            outlier_indices.update(s[mask].index.tolist())
+    except Exception as e:
+        logging.warning("Outlier detection failed for scatter %s vs %s: %s", x, y, e)
+
+    # Build outlier point list
+    outlier_points = []
+    for idx in list(outlier_indices)[:50]:
+        try:
+            ox = s.loc[idx, "x"]
+            oy = s.loc[idx, "y"]
+            if ox is not None and oy is not None:
+                outlier_points.append({"x": float(ox), "y": float(oy)})
+        except Exception:
+            pass
+
     return {
-        "type":  "scatter",
-        "title": f"{x} vs {y}",
-        "x":     _sl(s["x"]),
-        "y":     _sl(s["y"]),
-        "col_x": x,
-        "col_y": y,
+        "type":      "scatter",
+        "title":     f"{x} vs {y}",
+        "x":         xs,
+        "y":         ys,
+        "col_x":     x,
+        "col_y":     y,
+        "trendline": trendline,
+        "outliers":  outlier_points,
     }
 
 
@@ -467,22 +554,29 @@ def _area(df: pd.DataFrame, date: str, num: str) -> dict:
 
 
 def _grouped_bar(df: pd.DataFrame, cat: str, num: str) -> dict:
-    """Mean per category, sorted descending. Top 15 categories."""
-    agg = (
-        df.groupby(cat)[num]
-          .agg(["mean", "count"])
-          .sort_values("mean", ascending=False)
-          .head(15)
-    )
-    return {
-        "type":   "bar",
-        "title":  f"Mean {num} by {cat}",
-        "labels": agg.index.astype(str).tolist(),
-        "values": [_r4(v) for v in agg["mean"]],
-        "counts": agg["count"].tolist(),
-        "col_x":  cat,
-        "col_y":  num,
-    }
+    """Mean ± std per category, sorted descending. Top 15 categories."""
+    import logging
+    try:
+        agg = (
+            df.groupby(cat)[num]
+              .agg(["mean", "std", "count"])
+              .sort_values("mean", ascending=False)
+              .head(15)
+        )
+        agg["std"] = agg["std"].fillna(0)
+        return {
+            "type":   "bar",
+            "title":  f"Mean {num} by {cat}",
+            "labels": agg.index.astype(str).tolist(),
+            "values": [_r4(v) for v in agg["mean"]],
+            "std":    [_r4(v) for v in agg["std"]],
+            "counts": [int(v) for v in agg["count"]],
+            "col_x":  cat,
+            "col_y":  num,
+        }
+    except Exception as e:
+        logging.warning("_grouped_bar failed for %s × %s: %s", cat, num, e)
+        return {}
 
 
 def _grouped_lollipop(df: pd.DataFrame, cat: str, num: str) -> dict:
@@ -656,7 +750,8 @@ def _violin_stats(series: pd.Series) -> dict:
         ys    = kde(xs)
         kde_x = _sl(xs)
         kde_y = _sl(ys)
-    except Exception:
+    except Exception as e:
+        logging.warning("[charts] KDE failed: %s", e)
         kde_x, kde_y = [], []
     return {**_box_stats(series), "kde_x": kde_x, "kde_y": kde_y}
 
